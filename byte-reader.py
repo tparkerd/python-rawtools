@@ -1,34 +1,30 @@
 import os
 import sys
-import logging
-from pprint import pformat
-import io
 import argparse
+import numpy as np
+import logging
+from tqdm import tqdm
 
-def process(args):
-  with open (args.filename, mode='rb') as ifp:
-    total_bytes_read = 0
-    word = ifp.read(4) # read 4 bytes
-    # Initialize minimum and maximum values
-    lower_bound = int.from_bytes(word, byteorder=sys.byteorder, signed=False)
-    upper_bound = int.from_bytes(word, byteorder=sys.byteorder, signed=False)
-    while word:
-      value = int.from_bytes(word, byteorder=sys.byteorder, signed=False)
-      # Update min/max if necessary
-      if value < lower_bound:
-        lower_bound = value
-      if value > upper_bound:
-        upper_bound = value
-      # logging.info(value)
-      print(f'Processed {total_bytes_read / 749109248}%')
-      total_bytes_read += 4
-      word = ifp.read(4)
-
-  logging.info(f'[{lower_bound}, {upper_bound}]')
-
+# todo(tparker): change min and max bounds on input values to global
+def scale(vi):
+  si = vi.min()
+  ei = vi.max()
+  so = 0
+  eo = 2**16 - 1
+  return (so + ((eo-so)/(ei-si)) * (vi-si))
   
+def process(args):
+  df = None
+  logging.info(f'Loading input file: {args.filename}')
+  with open (args.filename, mode='rb') as ifp:
+    df = np.fromfile(ifp, dtype=args.dtype)
 
-
+  sdf = scale(df).astype('uint16')
+  if args.output is None:
+    args.output = os.path.basename(os.path.splitext(args.filename)[0]) + '.raw'
+  with open(args.output, 'wb') as ofp:
+    sdf.tofile(ofp)
+    
 def parseOptions():
   """
   Function to parse user-provided options from terminal
@@ -39,6 +35,7 @@ def parseOptions():
   parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0-alpha')
   parser.add_argument("-f", "--filename", action="store", default=None, help="Specify a configuration file. See documentation for expected format.")
   parser.add_argument("-o", "--output", action="store", default=None, help="Output filename.")
+  parser.add_argument("--dtype", action="store", default="float32", help="Numpy datatype (Default: 'float32'")
   parser.add_argument("-wd", action="store", dest="wd", metavar="WORKING DIRECTORY", default=None, help="Working directory. Must contains all required files.")
   args = parser.parse_args()
   if args.debug is True:
