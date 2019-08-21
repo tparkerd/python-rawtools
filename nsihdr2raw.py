@@ -13,6 +13,19 @@ TARGET_UPPER_BOUND = None
 def scale(vi):
   return (TARGET_LOWER_BOUND + ((TARGET_UPPER_BOUND-TARGET_LOWER_BOUND)/(INITIAL_UPPER_BOUND-INITIAL_LOWER_BOUND)) * (vi-INITIAL_LOWER_BOUND))
 
+def create_dat(args, metadata):
+  ObjectFileName = args.output
+  resolution = ' '.join(metadata['dimensions'])
+  slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
+  dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
+  output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
+
+  with open(dat_filepath, 'w') as ofp:
+    print(f'Generating {dat_filepath}')
+    ofp.write(output_string)
+
+  logging.debug(pformat(output_string))
+
 def bit_depth_to_string(bit_count):
   # Hard-coded values because I'm not sure how NSI encodes them in their
   # .nsihdr files
@@ -39,7 +52,6 @@ def read_nsihdr(args, fp):
     source_to_detector_distance = None
     source_to_table_distance = None
     bit_depth = None
-    logging.info(pformat(document))
     nsidats = []
     for line in document:
       nsidat_query = re.search(nsidat_pattern, line)
@@ -93,11 +105,11 @@ def set_initial_bounds(files):
   global TARGET_LOWER_BOUND
   global TARGET_UPPER_BOUND
 
-  logging.info("Reading all data files. Setting initial bounds.")
+  logging.debug("Reading all data files. Setting initial bounds.")
   for f in files:
     input_filepath = os.path.join(args.cwd, f)
     with open(input_filepath, mode='rb') as ifp:
-      logging.info(f'Reading {input_filepath}')
+      logging.debug(f'Reading {input_filepath}')
       # Assume 32-bit floating point value
       # NOTE(tparker): This may not be true for all volumes
       df = np.fromfile(ifp, dtype='float32')
@@ -111,11 +123,13 @@ def set_initial_bounds(files):
       else:
         INITIAL_UPPER_BOUND = max(INITIAL_UPPER_BOUND, df.max())
 
-      logging.info(f'Current bounds: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
-  logging.info(f'Intial bounds found and set: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
+      logging.debug(f'Current bounds: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
+  logging.debug(f'Intial bounds found and set: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
 
 def process(args, metadata):
-  logging.info('Processing...')
+  filename_resolution = int(round(metadata['resolution'] * 1000, 0))
+  args.output = f'{os.path.basename(os.path.splitext(args.filename)[0])}_{filename_resolution}-test.raw'
+  print(f'Generating {args.output}')
   for f in metadata['datafiles']:
     input_filepath = os.path.join(args.cwd, f)
     df = None
@@ -123,11 +137,8 @@ def process(args, metadata):
       df = np.fromfile(ifp, dtype='float32') # Assume 32-bit floating point value, but this may not be true for all volumes
 
     sdf = scale(df).astype('uint16')
-    filename_resolution = int(round(metadata['resolution'] * 1000, 0))
-    args.output = f'{os.path.basename(os.path.splitext(args.filename)[0])}_{filename_resolution}-test.raw'
     with open(args.output, 'ab') as ofp:
       sdf.tofile(ofp)
-  logging.info('Complete!')
 
 def parseOptions():
   """
@@ -140,6 +151,8 @@ def parseOptions():
   args = parser.parse_args()
 
   logging_level = logging.INFO
+  if args.verbose:
+    logging_level = logging.DEBUG
   logging_format = '%(asctime)s - %(levelname)s - %(filename)s %(lineno)d - %(message)s'
   logging.basicConfig(format=logging_format, level=logging_level)
   
@@ -153,19 +166,16 @@ if __name__ == "__main__":
     args.cwd = os.path.dirname(f)
     # Set filename being processed
     args.filename = f
-    logging.info(f)
-    logging.info(args.cwd)
+    logging.debug(f)
+    logging.debug(args.cwd)
     project_metadata = read_nsihdr(args, f)
-    print(pformat(project_metadata))
 
     # Set bounds
     TARGET_LOWER_BOUND = 0
     TARGET_UPPER_BOUND = (2**project_metadata['bit_depth'] - 1)
-    # set_initial_bounds(project_metadata['datafiles'])
-    INITIAL_LOWER_BOUND = -0.6872681975364685
-    INITIAL_UPPER_BOUND = 13.093421936035156
-
+    set_initial_bounds(project_metadata['datafiles'])
     process(args, project_metadata)
+    create_dat(args, project_metadata)
 
     # Reset bounds after file has been processed
     INITIAL_LOWER_BOUND = None
