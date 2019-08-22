@@ -218,9 +218,12 @@ if __name__ == "__main__":
     # Set bounds
     TARGET_LOWER_BOUND = 0
     TARGET_UPPER_BOUND = (2**project_metadata['bit_depth'] - 1)
-    set_initial_bounds(project_metadata)
-    process(args, project_metadata)
-    create_dat(args, project_metadata)
+    try:
+      set_initial_bounds(project_metadata)
+      process(args, project_metadata)
+      create_dat(args, project_metadata)
+    except:
+      raise
 
     # Reset bounds after file has been processed
     INITIAL_LOWER_BOUND = None
