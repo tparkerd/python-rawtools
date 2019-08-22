@@ -1,19 +1,38 @@
-import os
 import argparse
-import numpy as np
 import logging
+import os
 import re
 from pprint import pformat
 
+import numpy as np
+
+# Global bounds for input and output ranges per NSI project file
 INITIAL_LOWER_BOUND = None
 INITIAL_UPPER_BOUND = None
 TARGET_LOWER_BOUND = None
 TARGET_UPPER_BOUND = None
 
 def scale(vi):
+  """Scales a value from one range to another range, inclusive.
+
+  This functions uses globally assigned values, min and max, of N given .nsidat
+  files
+
+  Args:
+    vi (numeric): input value 
+
+  Returns:
+    numeric: The equivalent value of the input value within a new target range  
+  """
   return (TARGET_LOWER_BOUND + ((TARGET_UPPER_BOUND-TARGET_LOWER_BOUND)/(INITIAL_UPPER_BOUND-INITIAL_LOWER_BOUND)) * (vi-INITIAL_LOWER_BOUND))
 
 def create_dat(args, metadata):
+  """Generates a .dat file from information gathered from an .nsihdr file
+
+  Args:
+    args (ArgumentParser): user arguments from `argparse`
+    metadata (dict): dictionary of metadata created from reading .nsihdr file
+  """
   ObjectFileName = args.output
   resolution = ' '.join(metadata['dimensions'])
   slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
@@ -27,6 +46,17 @@ def create_dat(args, metadata):
   logging.debug(pformat(output_string))
 
 def bit_depth_to_string(bit_count):
+  """Convert an integer to a string representation of bit depth
+
+  These values have been hard-coded because there can be more than one type for
+  each bit depth, but these are the ones we currently use.
+
+  Args:
+    bit_count (integer): bit depth listed in .nsihdr
+  
+  Returns:
+    str: name of bit-depth
+  """
   # Hard-coded values because I'm not sure how NSI encodes them in their
   # .nsihdr files
   if bit_count == 8:
@@ -40,6 +70,14 @@ def bit_depth_to_string(bit_count):
     return None
 
 def read_nsihdr(args, fp):
+  """Collects relative metadata from .nsihdr file
+
+  Args:
+    fp (str): Input filepath to an .nsihdr file
+
+  Returns:
+    dict: metadata about NSI project
+  """
   with open(fp, 'r') as ifp:
     document = ifp.readlines()
 
@@ -100,6 +138,12 @@ def read_nsihdr(args, fp):
     }
 
 def set_initial_bounds(files):
+  """Scans .nsidat files for minimum and maximum values and sets them globally
+
+  Args:
+    files (list of str): list of filepaths to .nsidat files
+  
+  """
   global INITIAL_LOWER_BOUND
   global INITIAL_UPPER_BOUND
   global TARGET_LOWER_BOUND
@@ -127,6 +171,12 @@ def set_initial_bounds(files):
   logging.debug(f'Intial bounds found and set: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
 
 def process(args, metadata):
+  """Coalesces and converts .nsidat files to a single .raw
+
+  Args:
+    args (ArgumentParser): user arguments from `argparse`
+    metadata (dict): dictionary of metadata created from reading .nsihdr file
+  """
   filename_resolution = int(round(metadata['resolution'] * 1000, 0))
   args.output = f'{os.path.basename(os.path.splitext(args.filename)[0])}_{filename_resolution}-test.raw'
   print(f'Generating {args.output}')
@@ -141,8 +191,7 @@ def process(args, metadata):
       sdf.tofile(ofp)
 
 def parseOptions():
-  """
-  Function to parse user-provided options from terminal
+  """Function to parse user-provided options from terminal
   """
   parser = argparse.ArgumentParser()
   parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
@@ -166,8 +215,6 @@ if __name__ == "__main__":
     args.cwd = os.path.dirname(f)
     # Set filename being processed
     args.filename = f
-    logging.debug(f)
-    logging.debug(args.cwd)
     project_metadata = read_nsihdr(args, f)
 
     # Set bounds
