@@ -41,7 +41,7 @@ def parseOptions():
   parser = argparse.ArgumentParser()
   parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0-alpha')
-  parser.add_argument('files', metavar='FILES', type=str, nargs='2', help='List of .nsihdr files')
+  parser.add_argument('files', metavar='FILES', type=str, nargs='+', help='List of .nsihdr files')
   args = parser.parse_args()
 
   logging_level = logging.INFO
