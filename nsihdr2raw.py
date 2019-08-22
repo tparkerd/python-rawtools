@@ -7,7 +7,7 @@ from pprint import pformat
 import numpy as np
 from tqdm import tqdm
 
-# Global bounds for input and output ranges per NSI project file
+# Global bounds for initial and target ranges per NSI project file
 INITIAL_LOWER_BOUND = None
 INITIAL_UPPER_BOUND = None
 TARGET_LOWER_BOUND = None
@@ -27,8 +27,12 @@ def scale(vi):
   """
   return (TARGET_LOWER_BOUND + ((TARGET_UPPER_BOUND-TARGET_LOWER_BOUND)/(INITIAL_UPPER_BOUND-INITIAL_LOWER_BOUND)) * (vi-INITIAL_LOWER_BOUND))
 
-def create_dat(args, metadata):
+def write_metadata(args, metadata):
   """Generates a .dat file from information gathered from an .nsihdr file
+
+  NOTE(tparker): Temporarily, I am writing the minimum and maximum values found
+  in the 32-bit float version of the files in case we ever need to convert the
+  uint16 version back to float32.
 
   Args:
     args (ArgumentParser): user arguments from `argparse`
@@ -37,14 +41,19 @@ def create_dat(args, metadata):
   ObjectFileName = args.output
   resolution = ' '.join(metadata['dimensions'])
   slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
-  dat_filepath = os.path.join(f'{os.path.splitext(args.output)[0]}-test.dat')
+  dat_filepath = f'{os.path.splitext(args.output)[0]}-test.dat'
   output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
 
   with open(dat_filepath, 'w') as ofp:
     print(f'Generating {dat_filepath}')
     ofp.write(output_string)
 
-  logging.debug(pformat(output_string))
+  bounds_filepath = os.path.join(args.cwd, f'{os.path.splitext(args.output)[0]}-float32.range')
+  with open(bounds_filepath, 'w') as ofp:
+    print(f'Generating {bounds_filepath}')
+    bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
+    ofp.write(bounds)
+
 
 def bit_depth_to_string(bit_count):
   """Convert an integer to a string representation of bit depth
@@ -221,7 +230,7 @@ if __name__ == "__main__":
     try:
       set_initial_bounds(project_metadata)
       process(args, project_metadata)
-      create_dat(args, project_metadata)
+      write_metadata(args, project_metadata)
     except:
       raise
 
