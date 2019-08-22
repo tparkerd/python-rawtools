@@ -5,6 +5,7 @@ import re
 from pprint import pformat
 
 import numpy as np
+from tqdm import tqdm
 
 # Global bounds for input and output ranges per NSI project file
 INITIAL_LOWER_BOUND = None
@@ -36,7 +37,7 @@ def create_dat(args, metadata):
   ObjectFileName = args.output
   resolution = ' '.join(metadata['dimensions'])
   slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
-  dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
+  dat_filepath = os.path.join(f'{os.path.splitext(args.output)[0]}-test.dat')
   output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
 
   with open(dat_filepath, 'w') as ofp:
@@ -137,7 +138,7 @@ def read_nsihdr(args, fp):
       "dimensions": dimensions
     }
 
-def set_initial_bounds(files):
+def set_initial_bounds(metadata):
   """Scans .nsidat files for minimum and maximum values and sets them globally
 
   Args:
@@ -149,11 +150,10 @@ def set_initial_bounds(files):
   global TARGET_LOWER_BOUND
   global TARGET_UPPER_BOUND
 
-  logging.debug("Reading all data files. Setting initial bounds.")
-  for f in files:
+  files = metadata['datafiles']
+  for f in tqdm(files, desc=f"Calculating bounds for {metadata['nsihdr_fp']}"):
     input_filepath = os.path.join(args.cwd, f)
     with open(input_filepath, mode='rb') as ifp:
-      logging.debug(f'Reading {input_filepath}')
       # Assume 32-bit floating point value
       # NOTE(tparker): This may not be true for all volumes
       df = np.fromfile(ifp, dtype='float32')
@@ -177,8 +177,7 @@ def process(args, metadata):
     args (ArgumentParser): user arguments from `argparse`
     metadata (dict): dictionary of metadata created from reading .nsihdr file
   """
-  filename_resolution = int(round(metadata['resolution'] * 1000, 0))
-  args.output = f'{os.path.basename(os.path.splitext(args.filename)[0])}_{filename_resolution}-test.raw'
+  args.output = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}-test.raw')
   print(f'Generating {args.output}')
   for f in metadata['datafiles']:
     input_filepath = os.path.join(args.cwd, f)
@@ -200,8 +199,6 @@ def parseOptions():
   args = parser.parse_args()
 
   logging_level = logging.INFO
-  if args.verbose:
-    logging_level = logging.DEBUG
   logging_format = '%(asctime)s - %(levelname)s - %(filename)s %(lineno)d - %(message)s'
   logging.basicConfig(format=logging_format, level=logging_level)
   
@@ -216,11 +213,12 @@ if __name__ == "__main__":
     # Set filename being processed
     args.filename = f
     project_metadata = read_nsihdr(args, f)
+    project_metadata['nsihdr_fp'] = args.filename
 
     # Set bounds
     TARGET_LOWER_BOUND = 0
     TARGET_UPPER_BOUND = (2**project_metadata['bit_depth'] - 1)
-    set_initial_bounds(project_metadata['datafiles'])
+    set_initial_bounds(project_metadata)
     process(args, project_metadata)
     create_dat(args, project_metadata)
 
