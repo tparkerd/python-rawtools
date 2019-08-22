@@ -23,8 +23,10 @@ def process(args):
 
     matches = 0
     differences = 0
+    total = 0
     for i, value in tqdm(enumerate(sdf), total=sdf.size, desc="Calculating differences"):
       if sdf[i] != ddf[i]:
+        total += abs(sdf[i] - ddf[i])
         #print(f'diff (#{i}): ({sdf[i]} != {ddf[i]}) distance: { abs( sdf[i] - ddf[i] ) }')
         differences += 1
       else:
@@ -32,6 +34,7 @@ def process(args):
         matches += 1
 
     print(f'Accuracy: {matches / sdf.size}')
+    print(f'Average difference: {differences / total}')
 
 
 def parseOptions():
