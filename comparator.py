@@ -26,8 +26,8 @@ def process(args):
     total = 0
     for i, value in tqdm(enumerate(sdf), total=sdf.size, desc="Calculating differences"):
       if sdf[i] != ddf[i]:
-        total += abs(sdf[i] - ddf[i])
-        #print(f'diff (#{i}): ({sdf[i]} != {ddf[i]}) distance: { abs( sdf[i] - ddf[i] ) }')
+        total += abs( int(sdf[i]) - int(ddf[i]) )
+        # print(f' diff (#{i}): ({sdf[i]} != {ddf[i]}) distance: { abs( int(sdf[i]) - int(ddf[i]) ) }')
         differences += 1
       else:
         #print(f'match (#{i}): ({sdf[i]} != {ddf[i]})')
