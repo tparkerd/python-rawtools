@@ -5,11 +5,6 @@ import re
 from pprint import pformat
 
 import numpy as np
-# Temporary workaround for 'compiling' into a single binary
-# Known issue: https://github.com/pyinstaller/pyinstaller/issues/4363
-import numpy.random.bounded_integers
-import numpy.random.common
-import numpy.random.entropy
 from tqdm import tqdm
 
 # Global bounds for initial and target ranges per NSI project file
