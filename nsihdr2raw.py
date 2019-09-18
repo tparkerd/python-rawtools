@@ -46,7 +46,7 @@ def write_metadata(args, metadata):
   ObjectFileName = args.output
   resolution = ' '.join(metadata['dimensions'])
   slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
-  dat_filepath = f'{os.path.splitext(args.output)[0]}-test.dat'
+  dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
   output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
 
   with open(dat_filepath, 'w') as ofp:
@@ -182,7 +182,7 @@ def set_initial_bounds(metadata):
         INITIAL_UPPER_BOUND = max(INITIAL_UPPER_BOUND, df.max())
 
       logging.debug(f'Current bounds: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
-  logging.debug(f'Intial bounds found and set: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
+  print(f'Bounds set: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
 
 def process(args, metadata):
   """Coalesces and converts .nsidat files to a single .raw
@@ -191,7 +191,7 @@ def process(args, metadata):
     args (ArgumentParser): user arguments from `argparse`
     metadata (dict): dictionary of metadata created from reading .nsihdr file
   """
-  args.output = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}-test.raw')
+  args.output = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}.raw')
   print(f'Generating {args.output}')
   for f in metadata['datafiles']:
     input_filepath = os.path.join(args.cwd, f)

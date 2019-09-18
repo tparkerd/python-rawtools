@@ -35,10 +35,34 @@ find . -type f -iname "*.nsihdr" | while read f ; do nsihdr2raw "$f" ; done
 
 ## Installation
 
+[Releases](https://github.com/Topp-Roots-Lab/nsihdr2raw/releases) are available for Linux and Windows 10.
+
 ### From source
 ```bash
 git clone https://github.com/Topp-Roots-Lab/nsihdr2raw.git
 pip install -r requirements.txt
 ```
 
+## Animal Configuration
 
+Although this script was designed to be used a command line tool, its everyday
+use will be on a Windows machine, Animal in the x-ray suite. As such, I've 
+added a couple of other scripts (one-liners) to run on a Windows machine so
+that any `.nsi(hdr/dat)` will be converted to `.raw` (16-bit integer).
+
+1. Download the binary for Linux
+2. Download this repo
+3. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root`
+4. Create shortcut link to `.bat` script in `D:\`
+5. Create conversion folder: `D:\nsi2raw`
+
+Usage
+
+Copy NSI reconstruction data into conversion folder.
+
+
+## Troubleshooting & Assumptions
+
+- Input data is a 32-bit floating point volume
+- Output data should be 16-bit integer volume
+- `.dat` should not be modified as they may be used by the NSI software

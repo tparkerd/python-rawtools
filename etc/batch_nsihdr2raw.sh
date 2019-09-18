@@ -1,0 +1,1 @@
+find /cygdrive/d/nsi2raw/ -type f -iname "*.nsihdr" | while read f ; do nsihdr2raw "$f" ; done
