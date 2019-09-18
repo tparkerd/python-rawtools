@@ -66,7 +66,8 @@ that any `.nsi(hdr/dat)` will be converted to `.raw` (16-bit integer).
 
 Usage
 
-Copy NSI reconstruction data into conversion folder.
+1. Copy NSI reconstruction data into conversion folder.
+2. Click/run shortcut link to `.bat` script
 
 
 ## Troubleshooting & Assumptions
