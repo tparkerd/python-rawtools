@@ -43,6 +43,14 @@ git clone https://github.com/Topp-Roots-Lab/nsihdr2raw.git
 pip install -r requirements.txt
 ```
 
+### Releases
+
+Use PyInstaller
+
+```bash
+pyinstaller --clean --onefile nsihdr2raw.py
+```
+
 ## Animal Configuration
 
 Although this script was designed to be used a command line tool, its everyday
