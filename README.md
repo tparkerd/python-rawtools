@@ -60,7 +60,7 @@ that any `.nsi(hdr/dat)` will be converted to `.raw` (16-bit integer).
 
 1. Download the binary for Linux
 2. Download this repo
-3. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root`
+3. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root\nsi2raw`
 4. Create shortcut link to `.bat` script in `D:\`
 5. Create conversion folder: `D:\nsi2raw`
 
@@ -75,3 +75,16 @@ Usage
 - Input data is a 32-bit floating point volume
 - Output data should be 16-bit integer volume
 - `.dat` should not be modified as they may be used by the NSI software
+
+### Cannot execute binary file: Exec format error
+
+Do not remove the shebang (#!) from the first line of the script.
+
+### Encoding error
+
+*Currently, there is no fix for this yet.*
+
+Instead, do not use the release version of the script in a Cygwin environment.
+
+See [here](
+https://www.python.org/dev/peps/pep-0263/) for additional information.
