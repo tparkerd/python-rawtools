@@ -62,31 +62,27 @@ def get_slice(args, fp):
   logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     print(f"Extracting slice {i} from '{fp}'")
-    iSlice = np.empty([x, z], dtype=np.uint16)
+    iSlice = np.empty([x*z,1], dtype=np.uint16)
     logging.debug(f'Created empty nparray. iSlice.shape = {iSlice.shape}')
 
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    # test = byte_slice[(2*x*200):(2*x*300)]
-    # logging.debug(f'len(test) = {len(test)}')
-
     arr = np.frombuffer(byte_slice, dtype=np.uint16) # 2-byte pair sequence
     slice_count = 1
-    # for barr in 
+    pbar = tqdm(total = z, desc="Extracting slice fragments")
     while arr.size > 0:
-      # logging.debug(f'Extracting bytes arr[{start_byte}: {end_byte}]')
-      ith_byte_sequence = arr[start_byte: end_byte]
-      # np.append(iSlice, ith_byte_sequence)
-      if slice_count == i:
-        iSlice = arr
-      #logging.info(bite)
+      ith_byte_sequence = byte_slice[start_byte : end_byte - 1]
+      byte_arr = np.frombuffer(ith_byte_sequence, dtype=np.uint16)
+      iSlice = np.append(byte_arr, ith_byte_sequence)
       arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
+      pbar.update(1)
       slice_count += 1
+    pbar.close()
 
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
     # Each entry in the array will be 16 bits (2 bytes)
     arr = iSlice
     array_buffer = arr.tobytes()
-    img = Image.new("I", (x,y))
+    img = Image.new("I", (x,z))
     img.frombytes(array_buffer, 'raw', "I;16")
 
     # NOTE(tparker): For now, just export as TIFF 16-bit because the constrast is a little better
