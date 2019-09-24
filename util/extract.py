@@ -59,10 +59,11 @@ def get_slice(args, fp):
   logging.debug(f'buffer_size = {buffer_size} (Slice size in bytes)')
   
   # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
-  logging.info(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
+  logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
-    print(f"Extracting slices from '{fp}'")
-    iSlice = np.empty([y, z], dtype=np.uint16)
+    print(f"Extracting slice {i} from '{fp}'")
+    iSlice = np.empty([x, z], dtype=np.uint16)
+    logging.debug(f'Created empty nparray. iSlice.shape = {iSlice.shape}')
 
     byte_slice = ifp.read(buffer_size) # Byte sequence
     # test = byte_slice[(2*x*200):(2*x*300)]
@@ -80,7 +81,6 @@ def get_slice(args, fp):
       #logging.info(bite)
       arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
       slice_count += 1
-    logging.debug(f'Total slice count = {slice_count}')
 
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
     # Each entry in the array will be 16 bits (2 bytes)
@@ -88,14 +88,6 @@ def get_slice(args, fp):
     array_buffer = arr.tobytes()
     img = Image.new("I", (x,y))
     img.frombytes(array_buffer, 'raw', "I;16")
-
-    # # image is (width, height)
-    # imgTest = Image.new("I", (x,100))
-    # imgTest.frombytes(test, 'raw', "I;16")
-    # imgTest.save('test.tiff', format="tiff")
-
-    # This is the temporary location for me to just see all the generated images
-    # TODO(tparker): Change this to generate the midslices in the exact same folder as the .RAW & .DAT
 
     # NOTE(tparker): For now, just export as TIFF 16-bit because the constrast is a little better
     # It may not be necessary because it depends on the decoder (afaik) on the image is displayed.
@@ -105,7 +97,7 @@ def get_slice(args, fp):
     output_tiff = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.tiff'
     # print(f'Saving Slice (ID: {i}) as {output_png}')
     # img.save(output_png)
-    print(f'Saving Slice (ID: {i}) as {output_tiff}')
+    print(f'Saving slice {i} as {output_tiff}')
     img.save(output_tiff, format='tiff')
 
 
