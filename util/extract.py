@@ -2,37 +2,53 @@
 # -*- coding: utf-8 -*-
 import argparse
 import logging
+import math
 import os
 import re
 from pprint import pformat
+import io
 
 import numpy as np
-from tqdm import tqdm
-
 import PIL
 from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
 
 
 def getMidslice(args):
   for fp in args.files:
-    try:
-      x = 1853
-      y = 1853
-      z = 1502
-      offset = x * y
-      buffer_size = 
-      chunkSize = np.dtype('uint16').itemsize * z
-      with open(fp, mode='rb', buffering=buffer_size) as ifp:
-        print(f"Extracting slices from '{fp}'")
-        bite = np.frombuffer(ifp.read(chunkSize), dtype='uint16')
-        while bite.size > 0:
-          logging.info(bite)
-          bite = np.frombuffer(ifp.read(chunkSize), dtype='uint16')
-          skip = np.frombuffer(ifp.read(chunkSize * offset), dtype='uint16')
-        # substring = np.frombuffer(ifp, dtype='uint16')
-        # logging.info(substring)
-    except Exception as err:
-      logging.error(err)
+    x = 1799
+    y = 1799
+    z = 2971
+    i = args.index or int(math.ceil(x / 2))
+    start_byte = (y * i)
+    end_byte = ((y + 1) * i) - 1
+    buffer_size = x * y * np.dtype('uint16').itemsize # One slice
+    logging.debug(f'Slice Index: {i}')
+    logging.debug(f'np.dtype("uint16").itemsize = {np.dtype("uint16").itemsize}')
+    logging.debug(f'buffer_size = {buffer_size}')
+
+    # Target slice is (y * i) to ((y * i) - 1)
+    # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
+    with open(fp, mode='rb', buffering=buffer_size) as ifp:
+      print(f"Extracting slices from '{fp}'")
+      iSlice = np.empty([y, z], dtype=np.uint16)
+
+      arr = np.frombuffer(ifp.read(buffer_size), dtype=np.uint16)
+      slice_count = 1
+      while arr.size > 0:
+        #logging.info(bite)
+        arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
+        slice_count += 1
+      logging.debug(f'Total slice count = {slice_count}')
+
+
+      # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
+      # Each entry in the array will be 16 bits (2 bytes)
+      arr = iSlice
+      array_buffer = arr.tobytes()
+      img = Image.new("I", (x,y))
+      img.frombytes(array_buffer, 'raw', "I;16")
+      img.save("test.png")
 
 
 def parseOptions():
