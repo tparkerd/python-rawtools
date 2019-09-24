@@ -69,8 +69,10 @@ def get_slice(args, fp):
     arr = np.frombuffer(byte_slice, dtype=np.uint16) # 2-byte pair sequence
     slice_count = 1
     pbar = tqdm(total = z, desc="Extracting slice fragments")
+    raw_byte_string = bytearray()
     while arr.size > 0:
       ith_byte_sequence = byte_slice[start_byte : end_byte - 1]
+      raw_byte_string.join(ith_byte_sequence)
       byte_arr = np.frombuffer(ith_byte_sequence, dtype=np.uint16)
       iSlice = np.append(byte_arr, ith_byte_sequence)
       arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
@@ -78,9 +80,12 @@ def get_slice(args, fp):
       slice_count += 1
     pbar.close()
 
+    logging.debug(f'iSlice.shape = {iSlice.shape}')
+
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
     # Each entry in the array will be 16 bits (2 bytes)
-    arr = iSlice
+    # arr = iSlice
+    arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
     array_buffer = arr.tobytes()
     img = Image.new("I", (x,z))
     img.frombytes(array_buffer, 'raw', "I;16")
