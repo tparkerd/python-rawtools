@@ -14,44 +14,95 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 
-def getMidslice(args):
-  for fp in args.files:
-    x = 1799
-    y = 1799
-    z = 2971
-    i = args.index or int(math.ceil(x / 2))
-    start_byte = (y * i)
-    end_byte = ((y + 1) * i) - 1
-    buffer_size = x * y * np.dtype('uint16').itemsize # One slice
-    logging.debug(f'Slice Index: {i}')
-    logging.debug(f'np.dtype("uint16").itemsize = {np.dtype("uint16").itemsize}')
-    logging.debug(f'buffer_size = {buffer_size}')
+def get_slice(args, fp):
+  # Get its respective .DAT file to get its dimensions
+  dat_fp = f'{os.path.dirname(fp)}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.dat'
+  logging.debug(f'.DAT Path = {dat_fp}')
+  # If it cannot find .DAT file for specified .RAW
+  if not os.path.isfile(dat_fp) or not os.path.exists(dat_fp):
+    print(f'The DAT file for {fp} cannot be found. \'{dat_fp}\' cannot be found.')
+    return
+  # Extract the resolution from .DAT file
+  with open(dat_fp, mode='r') as dfp:
+    file_contents = dfp.readlines()
+  file_contents = ''.join(file_contents)
+  resolution_pattern = re.compile(r'\w+\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)')
+  match = re.search(resolution_pattern, file_contents)
+  x = int(match.group('x'))
+  y = int(match.group('y'))
+  z = int(match.group('z'))
 
-    # Target slice is (y * i) to ((y * i) - 1)
-    # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
-    with open(fp, mode='rb', buffering=buffer_size) as ifp:
-      print(f"Extracting slices from '{fp}'")
-      iSlice = np.empty([y, z], dtype=np.uint16)
+  # Get the requested slice index or default to the midslice on the Y axis
+  i = args.index or int(math.ceil(x / 2))
+  buffer_size = x * y * np.dtype('uint16').itemsize # One slice
 
-      arr = np.frombuffer(ifp.read(buffer_size), dtype=np.uint16)
-      slice_count = 1
-      while arr.size > 0:
-        #logging.info(bite)
-        arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
-        slice_count += 1
-      logging.debug(f'Total slice count = {slice_count}')
+  # Calculate the index bounds for the bytearray of a slice
+  start_byte = (np.dtype('uint16').itemsize * x * i)
+  end_byte = (np.dtype('uint16').itemsize * (x + 1) * i)
+  width = end_byte - start_byte
+  height = end_byte / start_byte
+  logging.debug(f'Extract slice bounds: <{start_byte}, {end_byte}>')
+  logging.debug(f'Extracted dimensions: ({width}, {height})')
+
+  logging.debug(f'Slice Index: {i}')
+  logging.debug(f'np.dtype("uint16").itemsize = {np.dtype("uint16").itemsize}')
+  logging.debug(f'buffer_size = {buffer_size} (Slice size in bytes)')
+  # Target slice is (y * i) to ((y * i) - 1)
+  # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
+  logging.info(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
+  with open(fp, mode='rb', buffering=buffer_size) as ifp:
+    print(f"Extracting slices from '{fp}'")
+    iSlice = np.empty([y, z], dtype=np.uint16)
+
+    byte_slice = ifp.read(buffer_size) # Byte sequence
+    start_byte 
+    test = byte_slice[(2*x*200):(2*x*300)]
+    logging.debug(f'len(test) = {len(test)}')
+
+    arr = np.frombuffer(byte_slice, dtype=np.uint16) # 2-byte pair sequence
+    logging.debug(f'len(ifp) = {len(byte_slice)}')
+    logging.debug(pformat(fp))
+    logging.debug(f'len(arr) = {len(arr)}')
+    slice_count = 1
+    while arr.size > 0:
+      # logging.debug(f'Extracting bytes arr[{start_byte}: {end_byte}]')
+      ith_byte_sequence = arr[start_byte: end_byte]
+      # np.append(iSlice, ith_byte_sequence)
+      if slice_count == i:
+        iSlice = arr
+      #logging.info(bite)
+      arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
+      slice_count += 1
+    logging.debug(f'Total slice count = {slice_count}')
+
+    # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
+    # Each entry in the array will be 16 bits (2 bytes)
+    arr = iSlice
+    array_buffer = arr.tobytes()
+    img = Image.new("I", (x,y))
+    img.frombytes(array_buffer, 'raw', "I;16")
+
+    # image is (width, height)
+    imgTest = Image.new("I", (x,100))
+    imgTest.frombytes(test, 'raw', "I;16")
+    imgTest.save('test.tiff', format="tiff")
+
+    # This is the temporary location for me to just see all the generated images
+    # TODO(tparker): Change this to generate the midslices in the exact same folder as the .RAW & .DAT
+
+    # NOTE(tparker): For now, just export as TIFF 16-bit because the constrast is a little better
+    # It may not be necessary because it depends on the decoder (afaik) on the image is displayed.
+    # The PNG slices seemed a lot darker than the TIFF version
+
+    # output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{i}.png'
+    output_tiff = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{i}.tiff'
+    # print(f'Saving Slice (ID: {i}) as {output_png}')
+    # img.save(output_png)
+    print(f'Saving Slice (ID: {i}) as {output_tiff}')
+    img.save(output_tiff, format='tiff')
 
 
-      # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
-      # Each entry in the array will be 16 bits (2 bytes)
-      arr = iSlice
-      array_buffer = arr.tobytes()
-      img = Image.new("I", (x,y))
-      img.frombytes(array_buffer, 'raw', "I;16")
-      img.save("test.png")
-
-
-def parseOptions():
+def parse_options():
   """Function to parse user-provided options from terminal
   """
   parser = argparse.ArgumentParser()
@@ -71,6 +122,8 @@ def parseOptions():
   return args
 
 if __name__ == "__main__":
-  args = parseOptions()
+  args = parse_options()
   logging.debug(f'File(s) selected: {args.files}')
-  getMidslice(args)
+  # For each file provided...
+  for fp in args.files:
+    get_slice(args, fp)
