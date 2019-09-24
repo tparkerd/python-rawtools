@@ -40,9 +40,9 @@ def get_slice(args, fp):
   buffer_size = x * y * np.dtype('uint16').itemsize # One slice
 
   # Calculate the index bounds for the bytearray of a slice
-  start_byte = (i * np.dtype('uint16').itemsize * x * i)
-  end_byte = (np.dtype('uint16').itemsize * x + 1)
-  width = end_byte - start_byte
+  start_byte = (np.dtype('uint16').itemsize * x * i)
+  end_byte = (np.dtype('uint16').itemsize * (x * (i + 1)) + 1)
+  width = int((end_byte - start_byte - 1) / np.dtype('uint16').itemsize)
   logging.debug(f'Extract slice bounds: <{start_byte}, {end_byte}>')
   logging.debug(f'Extracted dimensions: ({width}, {1})')
 
@@ -97,7 +97,7 @@ def get_slice(args, fp):
     # The PNG slices seemed a lot darker than the TIFF version
 
     # output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{i}.png'
-    output_tiff = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{i}.tiff'
+    output_tiff = f'{os.getcwd()}/data/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.tiff'
     # print(f'Saving Slice (ID: {i}) as {output_png}')
     # img.save(output_png)
     print(f'Saving Slice (ID: {i}) as {output_tiff}')
