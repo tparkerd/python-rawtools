@@ -33,16 +33,18 @@ def get_slice(args, fp):
   z = int(match.group('z'))
 
   # Get the requested slice index or default to the midslice on the Y axis
-  i = args.index or int(math.ceil(x / 2))
+  if args.index is None:
+    i = int(math.ceil(x / 2))
+  else:
+    i = args.index
   buffer_size = x * y * np.dtype('uint16').itemsize # One slice
 
   # Calculate the index bounds for the bytearray of a slice
-  start_byte = (np.dtype('uint16').itemsize * x * i)
-  end_byte = (np.dtype('uint16').itemsize * (x + 1) * i)
+  start_byte = (i * np.dtype('uint16').itemsize * x * i)
+  end_byte = (np.dtype('uint16').itemsize * x + 1)
   width = end_byte - start_byte
-  height = end_byte / start_byte
   logging.debug(f'Extract slice bounds: <{start_byte}, {end_byte}>')
-  logging.debug(f'Extracted dimensions: ({width}, {height})')
+  logging.debug(f'Extracted dimensions: ({width}, {1})')
 
   logging.debug(f'Slice Index: {i}')
   logging.debug(f'np.dtype("uint16").itemsize = {np.dtype("uint16").itemsize}')
@@ -109,7 +111,7 @@ def parse_options():
   parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0-alpha')
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
-  parser.add_argument("-i", "--index", action="store", type=int, help="The slice number indexed against the number of slices for a given dimension. Default: ceil(x / 2)")
+  parser.add_argument("-i", "--index", action="store", default=None, type=int, help="The slice number indexed against the number of slices for a given dimension. Default: ceil(x / 2)")
   args = parser.parse_args()
 
   logging_level = logging.INFO
