@@ -36,7 +36,7 @@ def get_slice(args, fp):
 
   # Get the requested slice index or default to the midslice on the Y axis
   if args.index is None:
-    i = int(math.ceil(x / 2))
+    i = int(math.floor(x / 2))
     print(f'Slice index not specified. Using midslice as default: \'{i}\'.')
   else:
     i = args.index
@@ -66,16 +66,17 @@ def get_slice(args, fp):
     logging.debug(f'Created empty nparray. iSlice.shape = {iSlice.shape}')
 
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    arr = np.frombuffer(byte_slice, dtype=np.uint16) # 2-byte pair sequence
+    #arr = np.frombuffer(byte_slice, dtype=np.uint16) # 2-byte pair sequence
     slice_count = 1
     pbar = tqdm(total = z, desc="Extracting slice fragments")
     raw_byte_string = bytearray()
-    while arr.size > 0:
+    while len(byte_slice) > 0:
       ith_byte_sequence = byte_slice[start_byte : end_byte - 1]
-      raw_byte_string.join(ith_byte_sequence)
-      byte_arr = np.frombuffer(ith_byte_sequence, dtype=np.uint16)
-      iSlice = np.append(byte_arr, ith_byte_sequence)
-      arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
+      raw_byte_string.extend(ith_byte_sequence)
+      # byte_arr = np.frombuffer(ith_byte_sequence, dtype=np.uint16)
+      # iSlice = np.append(byte_arr, ith_byte_sequence)
+      byte_slice = ifp.read(buffer_size)
+      #arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
       pbar.update(1)
       slice_count += 1
     pbar.close()
@@ -84,22 +85,33 @@ def get_slice(args, fp):
 
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
     # Each entry in the array will be 16 bits (2 bytes)
-    # arr = iSlice
     arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
-    array_buffer = arr.tobytes()
-    img = Image.new("I", (x,z))
-    img.frombytes(array_buffer, 'raw', "I;16")
+    arr = arr.reshape([z, x])
+    # NOTE(tparker): This was taken from the raw2img code, and I was not doing the remapping beforehand
+    iSlice = arr*(float(2**8-2))/float((2**16-1))
+    # array_buffer = arr.tobytes()
+    img8png = Image.fromarray(iSlice.astype('uint8'))
+    img16png = Image.fromarray(arr)
+    img16tiff = Image.fromarray(arr)
+    # img = Image.new("I", (x,z))
+    # img.frombytes(array_buffer, 'raw', "I;16")
 
     # NOTE(tparker): For now, just export as TIFF 16-bit because the constrast is a little better
     # It may not be necessary because it depends on the decoder (afaik) on the image is displayed.
     # The PNG slices seemed a lot darker than the TIFF version
 
-    # output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{i}.png'
     output_tiff = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.tiff'
+    output_png8 = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.8-bit.png'
+    output_png16 = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.16-bit.png'
+
+
     # print(f'Saving Slice (ID: {i}) as {output_png}')
+    img8png.save(output_png8)
+    img16png.save(output_png16)
+    img16tiff.save(output_tiff)
     # img.save(output_png)
-    print(f'Saving slice {i} as {output_tiff}')
-    img.save(output_tiff, format='tiff')
+    #print(f'Saving slice {i} as {output_tiff}')
+    #img.save(output_tiff, format='tiff')
 
 
 def parse_options():
@@ -109,7 +121,7 @@ def parse_options():
   parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0-alpha')
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
-  parser.add_argument("-i", "--index", action="store", default=None, type=int, help="The slice number indexed against the number of slices for a given dimension. Default: ceil(x / 2)")
+  parser.add_argument("-i", "--index", action="store", default=None, type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
   args = parser.parse_args()
 
   logging_level = logging.INFO
