@@ -104,37 +104,32 @@ def get_slice(args, fp):
     print(f'OutOfBoundsError - Index specified, \'{i}\' outside of dimensions of image. Image dimensions are ({x}, {y}). Slices are indexed from 0 to (N - 1)')
     sys.exit(1)
   start_byte = (np.dtype('uint16').itemsize * x * i)
-  end_byte = (np.dtype('uint16').itemsize * (x * (i + 1)) + 1)
-  width = int((end_byte - start_byte - 1) / np.dtype('uint16').itemsize)
-  logging.debug(f'Extract slice bounds: <{start_byte}, {end_byte}>')
-  logging.debug(f'Extracted dimensions: ({width}, {1})')
-  logging.debug(f'buffer_size = {buffer_size} (Slice size in bytes)')
+  end_byte = (np.dtype('uint16').itemsize * x * (i + 1))
+  logging.debug(f'Relative byte indices for extracted slice: <{start_byte}, {end_byte}>')
+  logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
   
-  logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     print(f"Extracting slice {i} from '{fp}'")
-
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    pbar = tqdm(total = z, desc="Extracting slice fragments")
+    pbar = tqdm(total = z, desc="Extracting slice fragments") # progress bar
     raw_byte_string = bytearray()
     # So long as there is data left in the .RAW, extract the next byte subset
     while len(byte_slice) > 0:
-      ith_byte_sequence = byte_slice[start_byte : end_byte - 1]
+      ith_byte_sequence = byte_slice[start_byte : end_byte]
       raw_byte_string.extend(ith_byte_sequence)
       byte_slice = ifp.read(buffer_size)
       pbar.update(1)
     pbar.close()
 
-    # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
-    # Each entry in the array will be 16 bits (2 bytes)
+    # Convert raw bytes to array of 16-bit values
     arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
-    # NOTE(tparker): This was taken from the raw2img code, and I was not doing the remapping beforehand
     arr = arr.reshape([z, x])
-    pngImage = Image.fromarray(arr.astype('uint16'))
-    output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.png'
+    pngImage = Image.fromarray(arr)
 
-    print(f'Saving Slice (ID: {i}) as {output_png}')
+    # Determine output location
+    output_png = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}_s{str(i).zfill(5)}.png')
+    print(f'Saving Slice #{i} as {output_png}')
     pngImage.save(output_png)
 
 def parse_options():
@@ -161,5 +156,9 @@ if __name__ == "__main__":
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
   for fp in args.files:
+    # Set working directory for files
+    args.cwd = os.path.dirname(fp)
+    # Set filename being processed
+    args.filename = fp
     get_slice(args, fp)
     get_maximum_slice_projection(args, fp)
