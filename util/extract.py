@@ -30,6 +30,9 @@ def read_dimensions(args, fp):
   match = re.search(resolution_pattern, file_contents)
   return int(match.group('x')), int(match.group('y')), int(match.group('z'))
 
+def get_maximum_slice_projection(args, fp):
+  pass
+
 def get_slice(args, fp):
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
@@ -66,53 +69,29 @@ def get_slice(args, fp):
     logging.debug(f'Created empty nparray. iSlice.shape = {iSlice.shape}')
 
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    #arr = np.frombuffer(byte_slice, dtype=np.uint16) # 2-byte pair sequence
     slice_count = 1
     pbar = tqdm(total = z, desc="Extracting slice fragments")
     raw_byte_string = bytearray()
+    # So long as there is data left in the .RAW, extract the next byte subset
     while len(byte_slice) > 0:
       ith_byte_sequence = byte_slice[start_byte : end_byte - 1]
       raw_byte_string.extend(ith_byte_sequence)
-      # byte_arr = np.frombuffer(ith_byte_sequence, dtype=np.uint16)
-      # iSlice = np.append(byte_arr, ith_byte_sequence)
       byte_slice = ifp.read(buffer_size)
-      #arr = np.frombuffer(ifp.read(buffer_size), dtype='uint16')
       pbar.update(1)
       slice_count += 1
     pbar.close()
 
-    logging.debug(f'iSlice.shape = {iSlice.shape}')
-
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
     # Each entry in the array will be 16 bits (2 bytes)
     arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
-    arr = arr.reshape([z, x])
+    # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
     # NOTE(tparker): This was taken from the raw2img code, and I was not doing the remapping beforehand
-    iSlice = arr*(float(2**8-2))/float((2**16-1))
-    # array_buffer = arr.tobytes()
-    img8png = Image.fromarray(iSlice.astype('uint8'))
-    img16png = Image.fromarray(arr)
-    img16tiff = Image.fromarray(arr)
-    # img = Image.new("I", (x,z))
-    # img.frombytes(array_buffer, 'raw', "I;16")
+    arr = arr.reshape([z, x])
+    pngImage = Image.fromarray(arr.astype('uint16'))
+    output_png = f'{os.getcwd()}/png/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.png'
 
-    # NOTE(tparker): For now, just export as TIFF 16-bit because the constrast is a little better
-    # It may not be necessary because it depends on the decoder (afaik) on the image is displayed.
-    # The PNG slices seemed a lot darker than the TIFF version
-
-    output_tiff = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.tiff'
-    output_png8 = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.8-bit.png'
-    output_png16 = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.16-bit.png'
-
-
-    # print(f'Saving Slice (ID: {i}) as {output_png}')
-    img8png.save(output_png8)
-    img16png.save(output_png16)
-    img16tiff.save(output_tiff)
-    # img.save(output_png)
-    #print(f'Saving slice {i} as {output_tiff}')
-    #img.save(output_tiff, format='tiff')
-
+    print(f'Saving Slice (ID: {i}) as {output_png}')
+    pngImage.save(output_png)
 
 def parse_options():
   """Function to parse user-provided options from terminal
@@ -138,4 +117,5 @@ if __name__ == "__main__":
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
   for fp in args.files:
-    get_slice(args, fp)
+    # get_slice(args, fp)
+    get_maximum_slice_projection(args, fp)
