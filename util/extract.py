@@ -10,8 +10,7 @@ import sys
 from pprint import pformat
 
 import numpy as np
-import PIL
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from tqdm import tqdm
 
 
@@ -31,8 +30,50 @@ def read_dimensions(args, fp):
   return int(match.group('x')), int(match.group('y')), int(match.group('z'))
 
 def get_maximum_slice_projection(args, fp):
-  pass
+  """Generate a project from the profile view a volume, using its maximum values per slice"""
+  # Extract the resolution from .DAT file
+  x, y, z = read_dimensions(args, fp)
 
+  # Calculate the number of bytes in a *single* slice of .RAW datafile
+  # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
+  buffer_size = x * y * np.dtype('uint16').itemsize
+  
+  # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
+  logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
+  logging.debug(f"byte_sequence_max_values({y})")
+  pbar = tqdm(total = z, desc="Extracting slice fragments")
+  with open(fp, mode='rb', buffering=buffer_size) as ifp:
+    # Load in the first slice
+    byte_slice = ifp.read(buffer_size) # Byte sequence
+    slice_count = 1
+    raw_image_data = bytearray() # 
+    # So long as there is data left in the .RAW, extract the next slice
+    while len(byte_slice) > 0:
+      # Create an array of the maximum values across the slice
+      # We are looking for the brightest pixels from the side of the volume
+      byte_sequence_max_values = np.frombuffer(byte_slice, dtype=np.uint16)
+      byte_sequence_max_values = byte_sequence_max_values.reshape(x, y) # Create a 2-D array of the data that is analogous to the image
+      byte_sequence_max_values = np.amax(byte_sequence_max_values, axis=0) # Get the maximum value for all the 
+      byte_sequence_max_values = byte_sequence_max_values.tobytes()
+
+      raw_image_data.extend(byte_sequence_max_values)
+      byte_slice = ifp.read(buffer_size)
+      pbar.update(1)
+      slice_count += 1
+    pbar.close()
+
+    # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
+    # Each entry in the array will be 16 bits (2 bytes)
+    arr = np.frombuffer(raw_image_data, dtype=np.uint16)
+    # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
+    # NOTE(tparker): This was taken from the raw2img code, and I was not doing the remapping beforehand
+    arr = arr.reshape([z, x])
+    pngImage = Image.fromarray(arr.astype('uint16'))
+    output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.maximum_slice_projection-numpy.png'
+
+    print(f'Saving maximum slice projection as {output_png}')
+    pngImage.save(output_png)
+    
 def get_slice(args, fp):
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
@@ -65,8 +106,6 @@ def get_slice(args, fp):
   logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     print(f"Extracting slice {i} from '{fp}'")
-    iSlice = np.empty([x*z,1], dtype=np.uint16)
-    logging.debug(f'Created empty nparray. iSlice.shape = {iSlice.shape}')
 
     byte_slice = ifp.read(buffer_size) # Byte sequence
     slice_count = 1
@@ -88,7 +127,7 @@ def get_slice(args, fp):
     # NOTE(tparker): This was taken from the raw2img code, and I was not doing the remapping beforehand
     arr = arr.reshape([z, x])
     pngImage = Image.fromarray(arr.astype('uint16'))
-    output_png = f'{os.getcwd()}/png/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.png'
+    output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.{str(i).zfill(5)}.png'
 
     print(f'Saving Slice (ID: {i}) as {output_png}')
     pngImage.save(output_png)
@@ -117,5 +156,5 @@ if __name__ == "__main__":
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
   for fp in args.files:
-    # get_slice(args, fp)
+    get_slice(args, fp)
     get_maximum_slice_projection(args, fp)
