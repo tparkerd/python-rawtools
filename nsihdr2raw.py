@@ -8,6 +8,7 @@ from pprint import pformat
 
 import numpy as np
 from tqdm import tqdm
+from util.extract import get_slice, get_maximum_slice_projection
 
 # Global bounds for initial and target ranges per NSI project file
 INITIAL_LOWER_BOUND = None
@@ -204,8 +205,8 @@ def parseOptions():
   """Function to parse user-provided options from terminal
   """
   parser = argparse.ArgumentParser()
-  parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
-  parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0.0')
+  parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+  parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument('files', metavar='FILES', type=str, nargs='+', help='List of .nsihdr files')
   args = parser.parse_args()
 

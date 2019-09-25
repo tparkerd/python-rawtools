@@ -1,13 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import argparse
-import io
 import logging
 import math
 import os
 import re
 import sys
-from pprint import pformat
 
 import numpy as np
 from PIL import Image
@@ -30,7 +28,13 @@ def read_dimensions(args, fp):
   return int(match.group('x')), int(match.group('y')), int(match.group('z'))
 
 def get_maximum_slice_projection(args, fp):
-  """Generate a project from the profile view a volume, using its maximum values per slice"""
+  """Generate a project from the profile view a volume, using its maximum values per slice
+  
+  Args:
+    args (Namespace): user-defined arguments
+    fp (str): filepath for a .RAW volume
+
+  """
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
 
@@ -38,15 +42,13 @@ def get_maximum_slice_projection(args, fp):
   # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
   buffer_size = x * y * np.dtype('uint16').itemsize
   
-  # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
   logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
-  logging.debug(f"byte_sequence_max_values({y})")
+  logging.debug(f"byte_sequence_max_values({x})")
   pbar = tqdm(total = z, desc="Extracting slice fragments")
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     # Load in the first slice
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    slice_count = 1
-    raw_image_data = bytearray() # 
+    raw_image_data = bytearray()
     # So long as there is data left in the .RAW, extract the next slice
     while len(byte_slice) > 0:
       # Create an array of the maximum values across the slice
@@ -59,7 +61,6 @@ def get_maximum_slice_projection(args, fp):
       raw_image_data.extend(byte_sequence_max_values)
       byte_slice = ifp.read(buffer_size)
       pbar.update(1)
-      slice_count += 1
     pbar.close()
 
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
@@ -75,6 +76,13 @@ def get_maximum_slice_projection(args, fp):
     pngImage.save(output_png)
     
 def get_slice(args, fp):
+  """ Extract the Nth slice out of a .RAW volume
+
+  Args:
+    args (Namespace): user-defined arguments
+    fp (str): (Default: midslice) filepath for a .RAW volume
+
+  """
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
 
@@ -85,8 +93,8 @@ def get_slice(args, fp):
   else:
     i = args.index
   
-  # Calculate the number of bytes in a *single* slice of .RAW datafile
-  # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
+  # Calculate the number of bytes in a *single* slice of .RAW data file
+  # NOTE(tparker): This assumes that an unsigned 16-bit .RAW volume
   buffer_size = x * y * np.dtype('uint16').itemsize
 
   # Calculate the index bounds for the bytearray of a slice
@@ -102,13 +110,11 @@ def get_slice(args, fp):
   logging.debug(f'Extracted dimensions: ({width}, {1})')
   logging.debug(f'buffer_size = {buffer_size} (Slice size in bytes)')
   
-  # The width of the extracted slice will be Y (2 bytes per, so 2Y bytes in length)
   logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     print(f"Extracting slice {i} from '{fp}'")
 
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    slice_count = 1
     pbar = tqdm(total = z, desc="Extracting slice fragments")
     raw_byte_string = bytearray()
     # So long as there is data left in the .RAW, extract the next byte subset
@@ -117,7 +123,6 @@ def get_slice(args, fp):
       raw_byte_string.extend(ith_byte_sequence)
       byte_slice = ifp.read(buffer_size)
       pbar.update(1)
-      slice_count += 1
     pbar.close()
 
     # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
@@ -136,8 +141,8 @@ def parse_options():
   """Function to parse user-provided options from terminal
   """
   parser = argparse.ArgumentParser()
-  parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
-  parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0-alpha')
+  parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+  parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
   parser.add_argument("-i", "--index", action="store", default=None, type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
   args = parser.parse_args()
