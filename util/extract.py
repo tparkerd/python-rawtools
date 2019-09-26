@@ -80,7 +80,11 @@ def get_maximum_slice_projection(args, fp):
     # Convert raw bytes to array of 16-bit values
     arr = np.frombuffer(raw_image_data, dtype=np.uint16)
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
-    arr = arr.reshape([z, x])
+    try:
+      arr = arr.reshape([z, x])
+    except Exception as err:
+      logging.error(err)
+      sys.exit(1)
     pngImage = Image.fromarray(arr.astype('uint16'))
 
     # Determine output location, check for overwrite, and then write to disk
@@ -148,7 +152,11 @@ def get_slice(args, fp):
   # Convert raw bytes to array of 16-bit values
   arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
   # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
-  arr = arr.reshape([z, x])
+  try:
+    arr = arr.reshape([z, x])
+  except Exception as err:
+    logging.error(err)
+    sys.exit(1)
   pngImage = Image.fromarray(arr)
   
   logging.info(f'Saving Slice #{i} as {ofp}')
