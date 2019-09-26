@@ -190,7 +190,7 @@ def process(args, metadata):
     args (ArgumentParser): user arguments from `argparse`
     metadata (dict): dictionary of metadata created from reading .nsihdr file
   """
-  print(f'Generating {args.output}')
+  pbar = tqdm(total = len(metadata['datafiles']), desc=f'Generating {args.output}')
   for f in metadata['datafiles']:
     input_filepath = os.path.join(args.cwd, f)
     df = None
@@ -200,6 +200,8 @@ def process(args, metadata):
     sdf = scale(df).astype('uint16')
     with open(args.output, 'ab') as ofp:
       sdf.tofile(ofp)
+      pbar.update(1)
+  pbar.close()
 
 def parseOptions():
   """Function to parse user-provided options from terminal
@@ -257,9 +259,9 @@ if __name__ == "__main__":
         else:
           logging.warning(f"FileExistsWarning - {args.output}. File will be overwritten.")
       
-      #set_initial_bounds(project_metadata)
-      #process(args, project_metadata)
-      #write_metadata(args, project_metadata)
+      set_initial_bounds(project_metadata)
+      process(args, project_metadata)
+      write_metadata(args, project_metadata)
       get_slice(args, args.output)
       get_maximum_slice_projection(args, args.output)
     except:
