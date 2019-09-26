@@ -231,7 +231,7 @@ def process(args, metadata):
 def parseOptions():
   """Function to parse user-provided options from terminal
   """
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(description="This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format, and it extracts the midslice and generates a side-view projection of the volume.")
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
