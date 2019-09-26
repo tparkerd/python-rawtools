@@ -1,19 +1,41 @@
 # nsihdr2raw
 
-This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format.
+This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format,
+and it extracts the midslice and generates a side-view projection of the volume.
 
 ## Usage
 ```
-usage: nsihdr2raw [-h] [--verbose] [-v] FILES [FILES ...]
+usage: nsihdr2raw.py [-h] [-v] [-V] [-f] FILES [FILES ...]
+
+This tool converts a NSI project from 32-bit float to 16-bit unsigned integer
+format, and it extracts the midslice and generates a side-view projection of
+the volume.
 
 positional arguments:
   FILES          List of .nsihdr files
 
 optional arguments:
   -h, --help     show this help message and exit
-  --verbose      Increase output verbosity
-  -v, --version  show program's version number and exit
+  -v, --verbose  Increase output verbosity
+  -V, --version  show program's version number and exit
+  -f, --force    Force file creation. Overwrite any existing files.
 ```
+
+## Input & Output
+
+### Input
+
+The input data consists of a `.nsihdr` and its paired `.nsidat` files. Both of these
+are created by the NorthStar Imaging (NSI) Software from x-ray scans.
+
+### Output
+
+The output consists of 5 individual files.
+- 16-bit integer `.raw` volume
+- Text file, `.dat` containing volume metadata
+- Text file, `.range` containing minimum and maxmimum values from original 32-bit data (`.nsidat`)
+- 16-bit grayscale, non-interlaced PNG, extracted side-view slice (default: middle most slice)
+- 16-bit grayscale, non-interlaced PNG, side-view projection
 
 ### Single project conversion
 ```bash
@@ -22,9 +44,14 @@ nsihdr2raw A10_lig1_789_73um.nsihdr
 
 Example output
 ```
-Calculating bounds of ./A10_lig1_789_73um.nsihdr: 100%|███████████████| 1/1 [00:01<00:00,  1.65s/it]
-Generating ./A10_lig1_789_73um-test.raw
-Generating ./A10_lig1_789_73um-test-test.dat
+Generating /media/tparker/drex/batchrawtest/Reconstruction/2_252.raw: 100%|███████████████████████████████| 19/19 [07:57<00:00, 18.50s/it]
+Generating /media/tparker/drex/batchrawtest/Reconstruction/2_252.dat
+Generating /media/tparker/drex/batchrawtest/Reconstruction/2_252-float32.range
+2019-09-26 15:24:55,624 - [INFO]  Slice index not specified. Using midslice as default: '899'.
+Extracting slice #899: 100%|███████████████████████████████| 2971/2971 [01:50<00:00, 26.96it/s]
+2019-09-26 15:26:45,825 - [INFO]  Saving Slice #899 as /media/tparker/drex/batchrawtest/Reconstruction/2_252.s00899.png
+Generating projection: 100%|███████████████████████████████| 2971/2971 [00:13<00:00, 219.23it/s]
+2019-09-26 15:27:00,339 - [INFO]  Saving maximum slice projection as /media/tparker/drex/batchrawtest/Reconstruction/2_252.msp.png
 ```
 
 ### Batch conversion (Linux)
@@ -35,15 +62,13 @@ find . -type f -iname "*.nsihdr" | while read f ; do nsihdr2raw "$f" ; done
 
 ## Installation
 
-[Releases](https://github.com/Topp-Roots-Lab/nsihdr2raw/releases) are available for Linux and Windows 10.
-
 ### From source
 ```bash
 git clone https://github.com/Topp-Roots-Lab/nsihdr2raw.git
 pip install -r requirements.txt
 ```
 
-### Releases
+### Binary executable
 
 Use PyInstaller
 
@@ -54,27 +79,28 @@ pyinstaller --clean --onefile nsihdr2raw.py
 ## Animal Configuration
 
 Although this script was designed to be used a command line tool, its everyday
-use will be on a Windows machine, Animal in the x-ray suite. As such, I've 
-added a couple of other scripts (one-liners) to run on a Windows machine so
-that any `.nsi(hdr/dat)` will be converted to `.raw` (16-bit integer).
+use will be on a Windows machine, Animal, found in the x-ray suite. As such, I've 
+included a couple of other scripts (one-liner `.bat` and `.sh`) to run on a Windows
+machine. This is to allow the user to simply click on a shortcut that will fire off
+the scripts to search for and convert any NSI files in a pre-determined location.
+If you change said location or the script itself, you will need to update the
+supplementary scripts to maintain this functionality.
 
-1. Download the binary for Linux
-2. Download this repo
-3. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root\nsi2raw`
-4. Create shortcut link to `.bat` script in `D:\`
-5. Create conversion folder: `D:\nsi2raw`
+These are the steps to set up the scripts on a Windows 10 machine with Cygwin
+installed and configured.
+
+1. Download/clone this repo.
+3. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root\nsi2raw`.
+4. Create shortcut link to `.bat` script in `D:\`.
+5. Create conversion folder: `D:\nsi2raw`.
 
 Usage
 
-1. Copy NSI reconstruction data into conversion folder.
-2. Click/run shortcut link to `.bat` script
+1. Copy NSI reconstruction data into conversion folder, `D:\nsi2raw`.
+2. Click/run shortcut link to `.bat` script.
 
 
-## Troubleshooting & Assumptions
-
-- Input data is a 32-bit floating point volume
-- Output data should be 16-bit integer volume
-- `.dat` should not be modified as they may be used by the NSI software
+## Troubleshooting
 
 ### Cannot execute binary file: Exec format error
 
@@ -88,3 +114,26 @@ Instead, do not use the release version of the script in a Cygwin environment.
 
 See [here](
 https://www.python.org/dev/peps/pep-0263/) for additional information.
+
+## Notes & Additional Information
+
+### `.range` file
+
+This file contains the minimum and maximum values that were stored in the original `.nsidat`
+files for an entire volume. Since this conversion goes from 32-bit to 16-bit format, there is
+a chance that two 32-bit values could be mapped to a single 16-bit value. Also, because the
+disk space consumed by 32-bit volumes is quite large, we chose to only keep the 16-bit `.raw`
+volumes and discard the `.nsidat` files once converted. If for some reason we need to need to 
+re-create a 32-bit float volume, we could likely be able to using the `.nsihdr`, `.raw` and
+`.range`. This has not yet been tested or attempted.
+
+Currently, the NSI software seems to save the range in the `.nsihdr` file on its `Data Range`
+attribute. It appears that the values have been rounded to the nearest one millionth (0.000000).
+If the value is not stored in the .`nsihdr` file, then it extracted from the `.nsidat` files
+by reading in each byte as a 32-bit float. This has a higher precision.
+
+### Byte-value Mismatch
+
+During development, the `.raw` produced by this tool and that of the NSI software did *not*
+exactly match. More than 99.9% of bytes matched between the two volumes, and those that
+differed were off by exactly 1. This difference is negligible was accepted.
