@@ -38,42 +38,54 @@ def get_maximum_slice_projection(args, fp):
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
 
+  # Determine output location and check for conflicts
+  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.msp.png')
+  if os.path.exists(ofp) and os.path.isfile(ofp):
+    # If file creation not forced, do not process volume, return
+    if args.force == False:
+      logging.info(f"File already exists. Skipping {ofp}.")
+      return
+    # Otherwise, user forced file generation
+    else:
+      logging.warning(f"FileExistsWarning - {ofp}. File will be overwritten.")
+
   # Calculate the number of bytes in a *single* slice of .RAW datafile
   # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
   buffer_size = x * y * np.dtype('uint16').itemsize
+  logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
   
-  logging.debug(f'File Size for \'{fp}\' = {os.path.getsize(fp)} bytes')
-  logging.debug(f"byte_sequence_max_values({x})")
-  pbar = tqdm(total = z, desc="Extracting slice fragments")
+  pbar = tqdm(total = z, desc="Generating projection") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     # Load in the first slice
     byte_slice = ifp.read(buffer_size) # Byte sequence
     raw_image_data = bytearray()
-    # So long as there is data left in the .RAW, extract the next slice
+    # For each slice in the volume....
     while len(byte_slice) > 0:
-      # Create an array of the maximum values across the slice
-      # We are looking for the brightest pixels from the side of the volume
+      # Convert bytes to 16-bit values
       byte_sequence_max_values = np.frombuffer(byte_slice, dtype=np.uint16)
-      byte_sequence_max_values = byte_sequence_max_values.reshape(x, y) # Create a 2-D array of the data that is analogous to the image
-      byte_sequence_max_values = np.amax(byte_sequence_max_values, axis=0) # Get the maximum value for all the 
+      # Create a 2-D array of the data that is analogous to the image
+      byte_sequence_max_values = byte_sequence_max_values.reshape(x, y)
+       # 'Squash' the slice into a single row of pixels containing the highest value along the 
+      byte_sequence_max_values = np.amax(byte_sequence_max_values, axis=0)
+      # Convert 16-bit values back to bytes
       byte_sequence_max_values = byte_sequence_max_values.tobytes()
 
+      # Append the maximum values to the resultant image
       raw_image_data.extend(byte_sequence_max_values)
+      # Read the next slice & update progress bar
       byte_slice = ifp.read(buffer_size)
       pbar.update(1)
     pbar.close()
 
-    # NOTE(tparker): This is just a test to convert to PNG slices, it does not pull out the midslice
-    # Each entry in the array will be 16 bits (2 bytes)
+    # Convert raw bytes to array of 16-bit values
     arr = np.frombuffer(raw_image_data, dtype=np.uint16)
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
-    # NOTE(tparker): This was taken from the raw2img code, and I was not doing the remapping beforehand
     arr = arr.reshape([z, x])
     pngImage = Image.fromarray(arr.astype('uint16'))
-    output_png = f'{os.getcwd()}/{"".join(os.path.splitext(os.path.basename(fp))[:-1])}.maximum_slice_projection-numpy.png'
 
-    print(f'Saving maximum slice projection as {output_png}')
-    pngImage.save(output_png)
+    # Determine output location, check for overwrite, and then write to disk
+    logging.info(f'Saving maximum slice projection as {ofp}')
+    pngImage.save(ofp)
     
 def get_slice(args, fp):
   """ Extract the Nth slice out of a .RAW volume
@@ -86,13 +98,26 @@ def get_slice(args, fp):
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
 
-  # Get the requested slice index or default to the midslice on the Y axis
-  if args.index is None:
-    i = int(math.floor(x / 2))
-    print(f'Slice index not specified. Using midslice as default: \'{i}\'.')
+  # Get the requested slice index
+  i = int(math.floor(x / 2)) # set default to midslice  
+  # If index defined and has a value, update index
+  if hasattr(args, 'index'):
+    if args.index is not None:
+      i = args.index
   else:
-    i = args.index
-  
+    logging.info(f'Slice index not specified. Using midslice as default: \'{i}\'.')
+
+ # Determine output location and check for conflicts
+  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.s{str(i).zfill(5)}.png')
+  if os.path.exists(ofp) and os.path.isfile(ofp):
+    # If file creation not forced, do not process volume, return
+    if args.force == False:
+      logging.info(f"File already exists. Skipping {ofp}.")
+      return
+    # Otherwise, user forced file generation
+    else:
+      logging.warning(f"FileExistsWarning - {ofp}. File will be overwritten.")
+
   # Calculate the number of bytes in a *single* slice of .RAW data file
   # NOTE(tparker): This assumes that an unsigned 16-bit .RAW volume
   buffer_size = x * y * np.dtype('uint16').itemsize
@@ -101,17 +126,16 @@ def get_slice(args, fp):
   # This byte array is a 1-D array of the image data for the current slice
   # The index defined
   if i < 0 or i > y - 1:
-    print(f'OutOfBoundsError - Index specified, \'{i}\' outside of dimensions of image. Image dimensions are ({x}, {y}). Slices are indexed from 0 to (N - 1)')
+    logging.error(f'OutOfBoundsError - Index specified, \'{i}\' outside of dimensions of image. Image dimensions are ({x}, {y}). Slices are indexed from 0 to (N - 1)')
     sys.exit(1)
   start_byte = (np.dtype('uint16').itemsize * x * i)
   end_byte = (np.dtype('uint16').itemsize * x * (i + 1))
   logging.debug(f'Relative byte indices for extracted slice: <{start_byte}, {end_byte}>')
   logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
   
+  pbar = tqdm(total = z, desc=f"Extracting slice #{i}") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
-    print(f"Extracting slice {i} from '{fp}'")
     byte_slice = ifp.read(buffer_size) # Byte sequence
-    pbar = tqdm(total = z, desc="Extracting slice fragments") # progress bar
     raw_byte_string = bytearray()
     # So long as there is data left in the .RAW, extract the next byte subset
     while len(byte_slice) > 0:
@@ -121,16 +145,14 @@ def get_slice(args, fp):
       pbar.update(1)
     pbar.close()
 
-    # Convert raw bytes to array of 16-bit values
-    arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
-    # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
-    arr = arr.reshape([z, x])
-    pngImage = Image.fromarray(arr)
-
-    # Determine output location
-    output_png = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}_s{str(i).zfill(5)}.png')
-    print(f'Saving Slice #{i} as {output_png}')
-    pngImage.save(output_png)
+  # Convert raw bytes to array of 16-bit values
+  arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
+  # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
+  arr = arr.reshape([z, x])
+  pngImage = Image.fromarray(arr)
+  
+  logging.info(f'Saving Slice #{i} as {ofp}')
+  pngImage.save(ofp)
 
 def parse_options():
   """Function to parse user-provided options from terminal
@@ -138,17 +160,30 @@ def parse_options():
   parser = argparse.ArgumentParser()
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
+  parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
   parser.add_argument("-i", "--index", action="store", default=None, type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
   args = parser.parse_args()
 
+  # Configure logging, stderr and file logs
   logging_level = logging.INFO
   if args.verbose:
     logging_level = logging.DEBUG
 
-  logging_format = '%(asctime)s - %(levelname)s - %(filename)s %(lineno)d - %(message)s'
-  logging.basicConfig(format=logging_format, level=logging_level)
-  
+  lfp = 'nsihdr2raw-extraction.log' # log filepath
+
+  logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s]  %(message)s")
+  rootLogger = logging.getLogger()
+  rootLogger.setLevel(logging_level)
+
+  fileHandler = logging.FileHandler(lfp)
+  fileHandler.setFormatter(logFormatter)
+  rootLogger.addHandler(fileHandler)
+
+  consoleHandler = logging.StreamHandler()
+  consoleHandler.setFormatter(logFormatter)
+  rootLogger.addHandler(consoleHandler)
+
   return args
 
 if __name__ == "__main__":
@@ -159,6 +194,5 @@ if __name__ == "__main__":
     # Set working directory for files
     args.cwd = os.path.dirname(fp)
     # Set filename being processed
-    args.filename = fp
     get_slice(args, fp)
     get_maximum_slice_projection(args, fp)

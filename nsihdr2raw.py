@@ -4,11 +4,13 @@ import argparse
 import logging
 import os
 import re
+import sys
 from pprint import pformat
 
 import numpy as np
 from tqdm import tqdm
-from util.extract import get_slice, get_maximum_slice_projection
+
+from util.extract import get_maximum_slice_projection, get_slice
 
 # Global bounds for initial and target ranges per NSI project file
 INITIAL_LOWER_BOUND = None
@@ -56,7 +58,6 @@ def write_metadata(args, metadata):
     print(f'Generating {bounds_filepath}')
     bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
     ofp.write(bounds)
-
 
 def bit_depth_to_string(bit_count):
   """Convert an integer to a string representation of bit depth
@@ -189,7 +190,6 @@ def process(args, metadata):
     args (ArgumentParser): user arguments from `argparse`
     metadata (dict): dictionary of metadata created from reading .nsihdr file
   """
-  args.output = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}.raw')
   print(f'Generating {args.output}')
   for f in metadata['datafiles']:
     input_filepath = os.path.join(args.cwd, f)
@@ -207,13 +207,28 @@ def parseOptions():
   parser = argparse.ArgumentParser()
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
+  parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
   parser.add_argument('files', metavar='FILES', type=str, nargs='+', help='List of .nsihdr files')
   args = parser.parse_args()
 
+  # Configure logging, stderr and file logs
   logging_level = logging.INFO
-  logging_format = '%(asctime)s - %(levelname)s - %(filename)s %(lineno)d - %(message)s'
-  logging.basicConfig(format=logging_format, level=logging_level)
-  
+  if args.verbose:
+    logging_level = logging.DEBUG
+
+  lfp = 'nsihdr2raw.log' # log filepath
+
+  logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s]  %(message)s")
+  rootLogger = logging.getLogger()
+  rootLogger.setLevel(logging_level)
+
+  fileHandler = logging.FileHandler(lfp)
+  fileHandler.setFormatter(logFormatter)
+  rootLogger.addHandler(fileHandler)
+
+  consoleHandler = logging.StreamHandler()
+  consoleHandler.setFormatter(logFormatter)
+  rootLogger.addHandler(consoleHandler)
   return args
 
 if __name__ == "__main__":
@@ -231,9 +246,22 @@ if __name__ == "__main__":
     TARGET_LOWER_BOUND = 0
     TARGET_UPPER_BOUND = (2**project_metadata['bit_depth'] - 1)
     try:
-      set_initial_bounds(project_metadata)
-      process(args, project_metadata)
-      write_metadata(args, project_metadata)
+      args.output = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}.raw')
+      # Determine output location and check for conflicts
+      if os.path.exists(args.output) and os.path.isfile(args.output):
+        # If file creation not forced, do not process volume, return
+        if args.force == False:
+          logging.info(f"File already exists. Skipping {args.output}.")
+          sys.exit(0)
+        # Otherwise, user forced file generation
+        else:
+          logging.warning(f"FileExistsWarning - {args.output}. File will be overwritten.")
+      
+      #set_initial_bounds(project_metadata)
+      #process(args, project_metadata)
+      #write_metadata(args, project_metadata)
+      get_slice(args, args.output)
+      get_maximum_slice_projection(args, args.output)
     except:
       raise
 
