@@ -52,7 +52,7 @@ def write_metadata(args, metadata):
     print(f'Generating {dat_filepath}')
     ofp.write(output_string)
 
-  bounds_filepath = os.path.join(args.cwd, f'{os.path.splitext(args.output)[0]}-float32.range')
+  bounds_filepath = os.path.join(args.cwd, f'{os.path.splitext(args.output)[0]}.float32.range')
   with open(bounds_filepath, 'w') as ofp:
     print(f'Generating {bounds_filepath}')
     bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
