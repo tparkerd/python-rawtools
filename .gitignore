@@ -114,3 +114,12 @@ data/
 
 # VSCode
 .vscode/*
+
+# Ignore image files
+*.tiff
+*.png
+*.bmp
+*.jpg
+*.jpeg
+*.gif
+test/*
