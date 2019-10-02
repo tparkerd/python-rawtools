@@ -82,14 +82,15 @@ def get_maximum_slice_projection(args, fp):
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
     try:
       arr = arr.reshape([z, x])
+      array_buffer = arr.tobytes()
+      pngImage = Image.new("I", arr.T.shape)
+      pngImage.frombytes(array_buffer, 'raw', "I;16")
+      pngImage.save(ofp)
     except Exception as err:
       logging.error(err)
       sys.exit(1)
-    pngImage = Image.fromarray(arr.astype('uint16'))
-
-    # Determine output location, check for overwrite, and then write to disk
-    logging.info(f'Saving maximum slice projection as {ofp}')
-    pngImage.save(ofp)
+    else:
+      logging.info(f'Saving maximum slice projection as {ofp}')
     
 def get_slice(args, fp):
   """ Extract the Nth slice out of a .RAW volume
@@ -154,13 +155,15 @@ def get_slice(args, fp):
   # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
   try:
     arr = arr.reshape([z, x])
+    array_buffer = arr.tobytes()
+    pngImage = Image.new("I", arr.T.shape)
+    pngImage.frombytes(array_buffer, 'raw', "I;16")
+    pngImage.save(ofp)
   except Exception as err:
     logging.error(err)
     sys.exit(1)
-  pngImage = Image.fromarray(arr)
-  
-  logging.info(f'Saving Slice #{i} as {ofp}')
-  pngImage.save(ofp)
+  else:
+    logging.info(f'Saving Slice #{i} as {ofp}')
 
 def parse_options():
   """Function to parse user-provided options from terminal
