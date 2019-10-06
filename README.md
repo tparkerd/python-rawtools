@@ -3,23 +3,24 @@
 This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format,
 and it extracts the midslice and generates a side-view projection of the volume.
 
-## Usage
-```
-usage: nsihdr2raw.py [-h] [-v] [-V] [-f] FILES [FILES ...]
+## Table of Contents
 
-This tool converts a NSI project from 32-bit float to 16-bit unsigned integer
-format, and it extracts the midslice and generates a side-view projection of
-the volume.
+- [Input & Output](#input-&-output)
+- [Usage](#usage)
+  * [Single Project Conversion](#single-project-conversion)
+  * [Batch Conversion](#batch-conversion-linux)
+- [Installation](#installation)
+  * [From Source](#from-source-recommended)
+  * [Binary Executable](#binary-executable)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Additional Information](#additional-information)
+  * [How Data is Processed](#how-data-is-processed)
+  * [`range` File](#`.range`-file)
+  * [Byte-value Mismatch](#byte-value-mismatch)
 
-positional arguments:
-  FILES          List of .nsihdr files
 
-optional arguments:
-  -h, --help     show this help message and exit
-  -v, --verbose  Increase output verbosity
-  -V, --version  show program's version number and exit
-  -f, --force    Force file creation. Overwrite any existing files.
-```
+``
 
 ## Input & Output
 
@@ -37,9 +38,35 @@ The output consists of 5 individual files.
 - 16-bit grayscale, non-interlaced PNG, extracted side-view slice (default: middle most slice)
 - 16-bit grayscale, non-interlaced PNG, side-view projection
 
+## Usage
+```
+usage: nsihdr2raw.py [-h] [-v] [-V] [-f] FILES [FILES ...]
+
+This tool converts a NSI project from 32-bit float to 16-bit unsigned integer
+format, and it extracts the midslice and generates a side-view projection of
+the volume.
+
+positional arguments:
+  FILES          List of .nsihdr files
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -v, --verbose  Increase output verbosity
+  -V, --version  show program's version number and exit
+  -f, --force    Force file creation. Overwrite any existing files.
+
+  
+```
 ### Single project conversion
+
 ```bash
 nsihdr2raw A10_lig1_789_73um.nsihdr
+```
+
+### Batch conversion (Linux)
+
+```bash
+find . -type f -iname "*.nsihdr" | while read f ; do nsihdr2raw "$f" ; done
 ```
 
 Example output
@@ -54,15 +81,9 @@ Generating projection: 100%|█████████████████�
 2019-09-26 15:27:00,339 - [INFO]  Saving maximum slice projection as /media/tparker/drex/batchrawtest/Reconstruction/2_252.msp.png
 ```
 
-### Batch conversion (Linux)
-
-```bash
-find . -type f -iname "*.nsihdr" | while read f ; do nsihdr2raw "$f" ; done
-```
-
 ## Installation
 
-### From source
+### From source (recommended)
 ```bash
 git clone https://github.com/Topp-Roots-Lab/nsihdr2raw.git
 pip install -r requirements.txt
@@ -76,7 +97,7 @@ Use PyInstaller
 pyinstaller --clean --onefile nsihdr2raw.py
 ```
 
-## Animal Configuration
+## Configuration
 
 Although this script was designed to be used a command line tool, its everyday
 use will be on a Windows machine, Animal, found in the x-ray suite. As such, I've 
@@ -110,12 +131,29 @@ Do not remove the shebang (#!) from the first line of the script.
 
 *Currently, there is no fix for this yet.*
 
-Instead, do not use the release version of the script in a Cygwin environment.
-
 See [here](
 https://www.python.org/dev/peps/pep-0263/) for additional information.
 
-## Notes & Additional Information
+## Additional Information
+
+### How Data is Processed
+
+#### Converting `.nsidat` to `.raw`
+
+A `.nsidat` file contains 32-bit floating point data. To save storage, we convert these to 16-bit unsigned integer values.  We do so using the following formula.
+
+![map_range](doc/img/map_range.svg)
+
+We have integer values represented by `i`, and we have float values represented by `f`. The minimum and maximum values of each range are needed to make the conversion. These are 0 to (2^16 -1) for an unsigned 16-bit integer. We extract the range for the 32-bit float from the data itself. If available, we get this information from the `.nsihdr`'s `Data Range` attribute.
+
+#### Calculating Resolution
+
+The resolution is the smallest distance measureable by the volume.
+It is computed using the following equation; each value is taken from the `.nsihdr` file.
+
+![resolution](doc/img/resolution.svg)
+
+Note: If the detector on the XRT is ever replaced or modified, the pitch will change.
 
 ### `.range` file
 
