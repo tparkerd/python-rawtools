@@ -20,8 +20,6 @@ and it extracts the midslice and generates a side-view projection of the volume.
   * [Byte-value Mismatch](#byte-value-mismatch)
 
 
-``
-
 ## Input & Output
 
 ### Input
