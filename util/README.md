@@ -68,6 +68,12 @@ Generating projection: 100%|█████████████████�
 2019-09-26 15:27:00,339 - [INFO]  Saving maximum slice projection as /media/tparker/drex/batchrawtest/Reconstruction/2_252.msp.png
 ```
 
+### Adding a scale
+
+The horizontal line stands the number of pixels above it. If the label
+is for slice #500, that means there are 500 slices above it. The horizontal line
+is the 501<sup>st</sup> slice.
+
 ## Troubleshooting
 
 No issues found so far. Please create an issue if you encounter a problem. 
