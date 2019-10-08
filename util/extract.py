@@ -8,7 +8,7 @@ import re
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw, ImageMath
 from tqdm import tqdm
 
 
@@ -86,11 +86,39 @@ def get_maximum_slice_projection(args, fp):
       pngImage = Image.new("I", arr.T.shape)
       pngImage.frombytes(array_buffer, 'raw', "I;16")
       pngImage.save(ofp)
+
+      try:
+          fill = (255,0,0,225)
+          img = Image.open(ofp)
+          # Convert from grayscale to RGB
+          img = ImageMath.eval('im/256', {'im': img }).convert('L').convert('RGBA')
+          draw = ImageDraw.Draw(img)
+
+          font = ImageFont.truetype('../etc/OpenSans-Regular.ttf', args.font_size)
+          ascent, descent = font.getmetrics()
+          offset = (ascent + descent) // 2
+
+          width, height = img.size
+          slice_index = 0
+
+          while slice_index < height:
+            slice_index += args.scale
+            # Adding text to current slice
+            # Getting the ideal offset for the font
+            # https://stackoverflow.com/questions/43060479/how-to-get-the-font-pixel-height-using-pil-imagefont
+            text_y = slice_index - offset
+            draw.text((110, text_y), str(slice_index), font = font, fill=fill)
+            # Add line
+            draw.line((0, slice_index, 100, slice_index), fill=fill)
+          img.save(ofp)
+      except:
+        raise
+
     except Exception as err:
       logging.error(err)
       sys.exit(1)
     else:
-      logging.info(f'Saving maximum slice projection as {ofp}')
+      logging.info(f'Saved maximum slice projection as {ofp}')
     
 def get_slice(args, fp):
   """ Extract the Nth slice out of a .RAW volume
@@ -168,12 +196,14 @@ def get_slice(args, fp):
 def parse_options():
   """Function to parse user-provided options from terminal
   """
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(description="Extract a slice or generate a side-view projection of a .RAW volume")
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
+  parser.add_argument("-p", "--projection", dest="scale", const=100, action="store", nargs='?', type=int, help="The number of pixels/slices between each tick on the scale.")
+  parser.add_argument("-m", "--midslice", dest='index', const=True, nargs='?', type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
+  parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="The number of pixels/slices between each tick on the scale.")
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
-  parser.add_argument("-i", "--index", action="store", default=None, type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
   args = parser.parse_args()
 
   # Configure logging, stderr and file logs
@@ -205,5 +235,9 @@ if __name__ == "__main__":
     # Set working directory for files
     args.cwd = os.path.dirname(fp)
     # Set filename being processed
-    get_slice(args, fp)
-    get_maximum_slice_projection(args, fp)
+    if args.index is not None:
+      if args.index is True:
+        args.index = None
+      get_slice(args, fp)
+    if args.scale is not None:
+      get_maximum_slice_projection(args, fp)
