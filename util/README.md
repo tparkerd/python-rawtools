@@ -25,7 +25,7 @@ can be generated either by the NorthStar Imaging (NSI) Software from exporting a
 
 The output consists of 2 individual files.
 - 16-bit grayscale, non-interlaced PNG, extracted side-view slice (default: middle most slice)
-- 16-bit grayscale, non-interlaced PNG, side-view projection
+- 8-bit RGBA, non-interlaced PNG, side-view projection
 
 |Example Slice|Example Projection|
 |-|-|
@@ -33,7 +33,11 @@ The output consists of 2 individual files.
 
 ## Usage
 ```
-usage: extract.py [-h] [-v] [-V] [-f] [-i INDEX] FILES [FILES ...]
+usage: extract.py [-h] [-v] [-V] [-f] [-p [SCALE]] [-m [INDEX]]
+                  [--font-size FONT_SIZE]
+                  FILES [FILES ...]
+
+Extract a slice or generate a side-view projection of a .RAW volume
 
 positional arguments:
   FILES                 List of .raw files
@@ -43,20 +47,26 @@ optional arguments:
   -v, --verbose         Increase output verbosity
   -V, --version         show program's version number and exit
   -f, --force           Force file creation. Overwrite any existing files.
-  -i INDEX, --index INDEX
+  -p [SCALE], --projection [SCALE]
+                        The number of pixels/slices between each tick on the
+                        scale. (Default 100)
+  -m [INDEX], --midslice [INDEX]
                         The slice number indexed against the number of slices
-                        for a given dimension. Default: floor(x / 2) 
+                        for a given dimension. (Default floor(x / 2))
+  --font-size FONT_SIZE
+                        The number of pixels/slices between each tick on the
+                        scale. (Default 24)
 ```
 ### Single project conversion
 
 ```bash
-python extract.py 2_252.raw
+python extract.py --projection --midslice 2_252.raw
 ```
 
 ### Batch conversion (Linux)
 
 ```bash
-find . -type f -iname "*.raw" | while read f ; do python extract.py "$f" ; done
+find . -type f -iname "*.raw" | while read f ; do python extract.py --projection --midslice "$f" ; done
 ```
 
 Example output
