@@ -200,7 +200,7 @@ def parse_options():
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-  parser.add_argument("-p", "--projection", dest="scale", const=100, action="store", nargs='?', type=int, help="The number of pixels/slices between each tick on the scale.")
+  parser.add_argument("-p", "--projection", dest="scale", const=100, action="store", nargs='?', type=int, default=100, help="The number of pixels/slices between each tick on the scale.")
   parser.add_argument("-m", "--midslice", dest='index', const=True, nargs='?', type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
   parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="The number of pixels/slices between each tick on the scale.")
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
