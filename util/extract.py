@@ -37,6 +37,7 @@ def get_maximum_slice_projection(args, fp):
   """
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
+  logging.debug(f'Volume dimensions: {x}, {y}, {z}')
 
   # Determine output location and check for conflicts
   ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.msp.png')
@@ -232,6 +233,7 @@ if __name__ == "__main__":
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
   for fp in args.files:
+    logging.info(f'Processing {fp} ({os.path.getsize(fp)})')
     # Set working directory for files
     args.cwd = os.path.dirname(fp)
     # Set filename being processed
