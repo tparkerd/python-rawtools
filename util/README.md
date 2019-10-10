@@ -49,13 +49,14 @@ optional arguments:
   -f, --force           Force file creation. Overwrite any existing files.
   -p, --projection      Generate the maximum slice projection (msp) for volume
                         (side-view)
-  --scale [STEP]        The number of slices between each tick on the scale.
-                        Default: 100
+  --scale [STEP]        Add scale on left side of projection. Step is the
+                        number of slices between each label. Default: 100
   -s [INDEX], --slice [INDEX]
                         Extract a slice from volume. Default: midslice =
                         floor(x / 2)
   --font-size FONT_SIZE
-                        Font size of labels of scale.
+                        Font size of labels of scale. Default: 24
+
 ```
 ### Single project conversion
 
