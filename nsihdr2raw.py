@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sys
+from datetime import datetime as dt
 
 import numpy as np
 from tqdm import tqdm
@@ -243,7 +244,7 @@ def parseOptions():
   if args.verbose:
     logging_level = logging.DEBUG
 
-  lfp = 'nsihdr2raw.log' # log filepath
+  lfp = f"{dt.today().strftime('%Y-%m-%d')}_{os.path.splitext(os.path.basename(__file__))[0]}.log"
 
   logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s]  %(message)s")
   rootLogger = logging.getLogger()

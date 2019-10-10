@@ -34,7 +34,7 @@ The output consists of 5 individual files.
 - Text file, `.dat` containing volume metadata
 - Text file, `.range` containing minimum and maxmimum values from original 32-bit data (`.nsidat`)
 - 16-bit grayscale, non-interlaced PNG, extracted side-view slice (default: middle most slice)
-- 16-bit grayscale, non-interlaced PNG, side-view projection
+- 8-bit grayscale, non-interlaced PNG, side-view projection
 
 ## Usage
 ```
