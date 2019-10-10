@@ -238,9 +238,10 @@ if __name__ == "__main__":
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
   for fp in args.files:
-    logging.info(f'Processing {fp} ({os.path.getsize(fp)} bytes)')
     # Set working directory for files
-    args.cwd = os.path.dirname(fp)
+    args.cwd = os.path.dirname(os.path.abspath(fp))
+    fp = os.path.abspath(fp)
+    logging.info(f'Processing {fp} ({os.path.getsize(fp)} bytes)')
     if args.index is not None:
       if args.index is True:
         args.index = None
