@@ -99,7 +99,9 @@ def get_maximum_slice_projection(args, fp):
             img = ImageMath.eval('im/256', {'im': img }).convert('L').convert('RGBA')
             draw = ImageDraw.Draw(img)
 
-            font = ImageFont.truetype('../etc/OpenSans-Regular.ttf', args.font_size)
+            font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), '..', 'etc', 'OpenSans-Regular.ttf'])
+            logging.debug(f'Font filepath: {font_fp}')
+            font = ImageFont.truetype(font_fp, args.font_size)
             ascent, descent = font.getmetrics()
             offset = (ascent + descent) // 2
 
