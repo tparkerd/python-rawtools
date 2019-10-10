@@ -6,9 +6,10 @@ import math
 import os
 import re
 import sys
+from datetime import datetime as dt
 
 import numpy as np
-from PIL import Image, ImageFont, ImageDraw, ImageMath
+from PIL import Image, ImageDraw, ImageFont, ImageMath
 from tqdm import tqdm
 
 
@@ -37,6 +38,7 @@ def get_maximum_slice_projection(args, fp):
   """
   # Extract the resolution from .DAT file
   x, y, z = read_dimensions(args, fp)
+  logging.debug(f'Volume dimensions: {x}, {y}, {z}')
 
   # Determine output location and check for conflicts
   ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.msp.png')
@@ -64,7 +66,7 @@ def get_maximum_slice_projection(args, fp):
       # Convert bytes to 16-bit values
       byte_sequence_max_values = np.frombuffer(byte_slice, dtype=np.uint16)
       # Create a 2-D array of the data that is analogous to the image
-      byte_sequence_max_values = byte_sequence_max_values.reshape(x, y)
+      byte_sequence_max_values = byte_sequence_max_values.reshape(y, x)
        # 'Squash' the slice into a single row of pixels containing the highest value along the 
       byte_sequence_max_values = np.amax(byte_sequence_max_values, axis=0)
       # Convert 16-bit values back to bytes
@@ -78,7 +80,9 @@ def get_maximum_slice_projection(args, fp):
     pbar.close()
 
     # Convert raw bytes to array of 16-bit values
+    logging.debug(f"raw_image_data length: {len(raw_image_data)}")
     arr = np.frombuffer(raw_image_data, dtype=np.uint16)
+    logging.debug(f"arr length: {len(arr)}")
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
     try:
       arr = arr.reshape([z, x])
@@ -87,32 +91,33 @@ def get_maximum_slice_projection(args, fp):
       pngImage.frombytes(array_buffer, 'raw', "I;16")
       pngImage.save(ofp)
 
-      try:
-          fill = (255,0,0,225)
-          img = Image.open(ofp)
-          # Convert from grayscale to RGB
-          img = ImageMath.eval('im/256', {'im': img }).convert('L').convert('RGBA')
-          draw = ImageDraw.Draw(img)
+      if args.step:
+        try:
+            fill = (255,0,0,225)
+            img = Image.open(ofp)
+            # Convert from grayscale to RGB
+            img = ImageMath.eval('im/256', {'im': img }).convert('L').convert('RGBA')
+            draw = ImageDraw.Draw(img)
 
-          font = ImageFont.truetype('../etc/OpenSans-Regular.ttf', args.font_size)
-          ascent, descent = font.getmetrics()
-          offset = (ascent + descent) // 2
+            font = ImageFont.truetype('../etc/OpenSans-Regular.ttf', args.font_size)
+            ascent, descent = font.getmetrics()
+            offset = (ascent + descent) // 2
 
-          width, height = img.size
-          slice_index = 0
+            width, height = img.size
+            slice_index = 0
 
-          while slice_index < height:
-            slice_index += args.scale
-            # Adding text to current slice
-            # Getting the ideal offset for the font
-            # https://stackoverflow.com/questions/43060479/how-to-get-the-font-pixel-height-using-pil-imagefont
-            text_y = slice_index - offset
-            draw.text((110, text_y), str(slice_index), font = font, fill=fill)
-            # Add line
-            draw.line((0, slice_index, 100, slice_index), fill=fill)
-          img.save(ofp)
-      except:
-        raise
+            while slice_index < height:
+              slice_index += args.step
+              # Adding text to current slice
+              # Getting the ideal offset for the font
+              # https://stackoverflow.com/questions/43060479/how-to-get-the-font-pixel-height-using-pil-imagefont
+              text_y = slice_index - offset
+              draw.text((110, text_y), str(slice_index), font = font, fill=fill)
+              # Add line
+              draw.line((0, slice_index, 100, slice_index), fill=fill)
+            img.save(ofp)
+        except:
+          raise
 
     except Exception as err:
       logging.error(err)
@@ -159,7 +164,7 @@ def get_slice(args, fp):
   # This byte array is a 1-D array of the image data for the current slice
   # The index defined
   if i < 0 or i > y - 1:
-    logging.error(f'OutOfBoundsError - Index specified, \'{i}\' outside of dimensions of image. Image dimensions are ({x}, {y}). Slices are indexed from 0 to (N - 1)')
+    logging.error(f'OutOfBoundsError - Index specified, \'{i}\' outside of dimensions of image. Image dimensions are ({x}, {y}). Slices are indexed from 0 to {y - 1}, inclusive.')
     sys.exit(1)
   start_byte = (np.dtype('uint16').itemsize * x * i)
   end_byte = (np.dtype('uint16').itemsize * x * (i + 1))
@@ -200,9 +205,10 @@ def parse_options():
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-  parser.add_argument("-p", "--projection", dest="scale", const=100, action="store", nargs='?', type=int, default=100, help="The number of pixels/slices between each tick on the scale.")
-  parser.add_argument("-m", "--midslice", dest='index', const=True, nargs='?', type=int, help="The slice number indexed against the number of slices for a given dimension. Default: floor(x / 2)")
-  parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="The number of pixels/slices between each tick on the scale.")
+  parser.add_argument("-p", "--projection", action="store_true", help="Generate the maximum slice projection (msp) for volume (side-view)")
+  parser.add_argument("--scale", dest="step", const=100, action="store", nargs='?', type=int, help="Add scale on left side of projection. Step is the number of slices between each label. Default: 100")
+  parser.add_argument("-s", "--slice", dest='index', const=True, nargs='?', type=int, help="Extract a slice from volume. Default: midslice = floor(x / 2)")
+  parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="Font size of labels of scale. Default: 24")
   parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
   args = parser.parse_args()
 
@@ -211,9 +217,9 @@ def parse_options():
   if args.verbose:
     logging_level = logging.DEBUG
 
-  lfp = 'nsihdr2raw-extraction.log' # log filepath
+  lfp = f"{dt.today().strftime('%Y-%m-%d')}_{os.path.splitext(os.path.basename(__file__))[0]}.log"
 
-  logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s]  %(message)s")
+  logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s] - %(filename)s %(lineno)d - %(message)s")
   rootLogger = logging.getLogger()
   rootLogger.setLevel(logging_level)
 
@@ -232,12 +238,12 @@ if __name__ == "__main__":
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
   for fp in args.files:
+    logging.info(f'Processing {fp} ({os.path.getsize(fp)} bytes)')
     # Set working directory for files
     args.cwd = os.path.dirname(fp)
-    # Set filename being processed
     if args.index is not None:
       if args.index is True:
         args.index = None
       get_slice(args, fp)
-    if args.scale is not None:
+    if args.projection is True:
       get_maximum_slice_projection(args, fp)

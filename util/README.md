@@ -33,7 +33,7 @@ The output consists of 2 individual files.
 
 ## Usage
 ```
-usage: extract.py [-h] [-v] [-V] [-f] [-p [SCALE]] [-m [INDEX]]
+usage: extract.py [-h] [-v] [-V] [-f] [-p] [--scale [STEP]] [-s [INDEX]]
                   [--font-size FONT_SIZE]
                   FILES [FILES ...]
 
@@ -47,15 +47,15 @@ optional arguments:
   -v, --verbose         Increase output verbosity
   -V, --version         show program's version number and exit
   -f, --force           Force file creation. Overwrite any existing files.
-  -p [SCALE], --projection [SCALE]
-                        The number of pixels/slices between each tick on the
-                        scale. (Default 100)
-  -m [INDEX], --midslice [INDEX]
-                        The slice number indexed against the number of slices
-                        for a given dimension. (Default floor(x / 2))
+  -p, --projection      Generate the maximum slice projection (msp) for volume
+                        (side-view)
+  --scale [STEP]        The number of slices between each tick on the scale.
+                        Default: 100
+  -s [INDEX], --slice [INDEX]
+                        Extract a slice from volume. Default: midslice =
+                        floor(x / 2)
   --font-size FONT_SIZE
-                        The number of pixels/slices between each tick on the
-                        scale. (Default 24)
+                        Font size of labels of scale.
 ```
 ### Single project conversion
 
@@ -66,7 +66,7 @@ python extract.py --projection --midslice 2_252.raw
 ### Batch conversion (Linux)
 
 ```bash
-find . -type f -iname "*.raw" | while read f ; do python extract.py --projection --midslice "$f" ; done
+find . -type f -iname "*.raw" | while read f ; do python extract.py --projection --slice "$f" ; done
 ```
 
 Example output
