@@ -1,8 +1,9 @@
 # extract
 
-This tool extracts a slice, the n<sup>th</sup> index from a 16-bit unsigned
+Originally, this tool extracted a slice, the n<sup>th</sup> index from a 16-bit unsigned
 integer `.raw` volume. By default, it will extract the midslice, the middle most
-slice from the volume from a side view.
+slice from the volume from a side view. It has now evolved to also include projections
+from a top-view and side-view of a volume.
 
 ## Table of Contents
 
@@ -23,9 +24,9 @@ can be generated either by the NorthStar Imaging (NSI) Software from exporting a
 
 ### Output
 
-The output consists of 2 individual files.
+The output consists of 2 types of files.
 - 16-bit grayscale, non-interlaced PNG, extracted side-view slice (default: middle most slice)
-- 8-bit RGBA, non-interlaced PNG, side-view projection
+- 8-bit RGBA, non-interlaced PNG, projection (brightest values across a given axis)
 
 |Example Slice|Example Projection|
 |-|-|
@@ -33,11 +34,12 @@ The output consists of 2 individual files.
 
 ## Usage
 ```
-usage: extract.py [-h] [-v] [-V] [-f] [-p] [--scale [STEP]] [-s [INDEX]]
-                  [--font-size FONT_SIZE]
+usage: extract.py [-h] [-v] [-V] [-f] [-p PROJECTION [PROJECTION ...]]
+                  [--scale [STEP]] [-s [INDEX]] [--font-size FONT_SIZE]
                   FILES [FILES ...]
 
-Extract a slice or generate a side-view projection of a .RAW volume
+Extract a slice or generate a projection of a .RAW volume. Requires a .RAW and
+.DAT for a given volume.
 
 positional arguments:
   FILES                 List of .raw files
@@ -47,8 +49,9 @@ optional arguments:
   -v, --verbose         Increase output verbosity
   -V, --version         show program's version number and exit
   -f, --force           Force file creation. Overwrite any existing files.
-  -p, --projection      Generate the maximum slice projection (msp) for volume
-                        (side-view)
+  -p PROJECTION [PROJECTION ...], --projection PROJECTION [PROJECTION ...]
+                        Generate projection using maximum values for each
+                        slice. Available options: [ 'top', 'side' ].
   --scale [STEP]        Add scale on left side of projection. Step is the
                         number of slices between each label. Default: 100
   -s [INDEX], --slice [INDEX]
@@ -67,7 +70,7 @@ python extract.py --projection --midslice 2_252.raw
 ### Batch conversion (Linux)
 
 ```bash
-find . -type f -iname "*.raw" | while read f ; do python extract.py --projection --slice "$f" ; done
+find . -type f -iname "*.raw" | while read f ; do python extract.py --projection side --slice "$f" ; done
 ```
 
 Example output

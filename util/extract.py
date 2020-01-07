@@ -267,11 +267,11 @@ def get_slice(args, fp):
 def parse_options():
   """Function to parse user-provided options from terminal
   """
-  parser = argparse.ArgumentParser(description="Extract a slice or generate a side-view projection of a .RAW volume")
+  parser = argparse.ArgumentParser(description="Extract a slice or generate a projection of a .RAW volume. Requires a .RAW and .DAT for a given volume.")
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-  parser.add_argument("-p", "--projection", action="store", nargs='+', help="Generate projection using maximum values for each slice")
+  parser.add_argument("-p", "--projection", action="store", nargs='+', help="Generate projection using maximum values for each slice. Available options: [ 'top', 'side' ].")
   parser.add_argument("--scale", dest="step", const=100, action="store", nargs='?', type=int, help="Add scale on left side of projection. Step is the number of slices between each label. Default: 100")
   parser.add_argument("-s", "--slice", dest='index', const=True, nargs='?', type=int, help="Extract a slice from volume. Default: midslice = floor(x / 2)")
   parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="Font size of labels of scale. Default: 24")
