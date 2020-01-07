@@ -28,8 +28,8 @@ def read_dimensions(args, fp):
   match = re.search(resolution_pattern, file_contents)
   return int(match.group('x')), int(match.group('y')), int(match.group('z'))
 
-def get_maximum_slice_projection(args, fp):
-  """Generate a project from the profile view a volume, using its maximum values per slice
+def get_top_down_projection(args, fp):
+  """Generate a projection from the top-down view of a volume, using its maximum values per horizontal slice
   
   Args:
     args (Namespace): user-defined arguments
@@ -41,7 +41,71 @@ def get_maximum_slice_projection(args, fp):
   logging.debug(f'Volume dimensions: {x}, {y}, {z}')
 
   # Determine output location and check for conflicts
-  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.msp.png')
+  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}-projection-top.png')
+  if os.path.exists(ofp) and os.path.isfile(ofp):
+    # If file creation not forced, do not process volume, return
+    if args.force == False:
+      logging.info(f"File already exists. Skipping {ofp}.")
+      return
+    # Otherwise, user forced file generation
+    else:
+      logging.warning(f"FileExistsWarning - {ofp}. File will be overwritten.")
+
+  # Calculate the number of bytes in a *single* slice of .RAW datafile
+  # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
+  buffer_size = x * y * np.dtype('uint16').itemsize
+  logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
+
+  pbar = tqdm(total = z, desc="Generating top-down projection") # progress bar
+  with open(fp, mode='rb', buffering=buffer_size) as ifp:
+    # Load in the first slice
+    byte_slice = ifp.read(buffer_size) # Byte sequence
+    raw_image_data = np.zeros(y * x, dtype=np.uint16).reshape(y, x)
+    # For each slice in the volume....
+    while len(byte_slice) > 0:
+      # Convert bytes to 16-bit values
+      byte_sequence_max_values = np.frombuffer(byte_slice, dtype=np.uint16)
+      # Create a 2-D array of the data that is analogous to the image
+      byte_sequence_max_values = byte_sequence_max_values.reshape(y, x)
+      # 'Squash' together the brightest values so far with the current slice
+      raw_image_data = np.maximum(raw_image_data, byte_sequence_max_values)
+      # # Read the next slice & update progress bar
+      byte_slice = ifp.read(buffer_size)
+      pbar.update(1)
+    pbar.close()
+
+    # Convert raw bytes to array of 16-bit values
+    logging.debug(f"raw_image_data length: {np.shape(raw_image_data)}")
+    arr = np.frombuffer(raw_image_data, dtype=np.uint16)
+    logging.debug(f"arr length: {len(arr)}")
+    # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
+    try:
+      arr = raw_image_data
+      array_buffer = arr.tobytes()
+      pngImage = Image.new("I", arr.T.shape)
+      pngImage.frombytes(array_buffer, 'raw', "I;16")
+      pngImage.save(ofp)
+
+    except Exception as err:
+      logging.error(err)
+      sys.exit(1)
+    else:
+      logging.info(f'Saved maximum slice projection as {ofp}')
+
+def get_side_projection(args, fp):
+  """Generate a projection from the profile view a volume, using its maximum values per slice
+
+  Args:
+    args (Namespace): user-defined arguments
+    fp (str): filepath for a .RAW volume
+
+  """
+  # Extract the resolution from .DAT file
+  x, y, z = read_dimensions(args, fp)
+  logging.debug(f'Volume dimensions: {x}, {y}, {z}')
+
+  # Determine output location and check for conflicts
+  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.projection-side.png')
   if os.path.exists(ofp) and os.path.isfile(ofp):
     # If file creation not forced, do not process volume, return
     if args.force == False:
@@ -56,7 +120,7 @@ def get_maximum_slice_projection(args, fp):
   buffer_size = x * y * np.dtype('uint16').itemsize
   logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
   
-  pbar = tqdm(total = z, desc="Generating projection") # progress bar
+  pbar = tqdm(total = z, desc="Generating side-view projection") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     # Load in the first slice
     byte_slice = ifp.read(buffer_size) # Byte sequence
@@ -105,7 +169,7 @@ def get_maximum_slice_projection(args, fp):
             ascent, descent = font.getmetrics()
             offset = (ascent + descent) // 2
 
-            width, height = img.size
+            _, height = img.size # width is usused
             slice_index = 0
 
             while slice_index < height:
@@ -207,7 +271,7 @@ def parse_options():
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-  parser.add_argument("-p", "--projection", action="store_true", help="Generate the maximum slice projection (msp) for volume (side-view)")
+  parser.add_argument("-p", "--projection", action="store", nargs='+', help="Generate projection using maximum values for each slice")
   parser.add_argument("--scale", dest="step", const=100, action="store", nargs='?', type=int, help="Add scale on left side of projection. Step is the number of slices between each label. Default: 100")
   parser.add_argument("-s", "--slice", dest='index', const=True, nargs='?', type=int, help="Extract a slice from volume. Default: midslice = floor(x / 2)")
   parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="Font size of labels of scale. Default: 24")
@@ -248,5 +312,8 @@ if __name__ == "__main__":
       if args.index is True:
         args.index = None
       get_slice(args, fp)
-    if args.projection is True:
-      get_maximum_slice_projection(args, fp)
+    if args.projection is not None:
+      if 'side' in args.projection:
+        get_side_projection(args, fp)
+      if 'top' in args.projection:
+        get_top_down_projection(args, fp)
