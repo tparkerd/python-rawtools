@@ -303,6 +303,50 @@ if __name__ == "__main__":
   args = parse_options()
   logging.debug(f'File(s) selected: {args.files}')
   # For each file provided...
+  paths = args.files
+  args.files = []
+  for fp in paths:
+    # Check if supplied 'file' is a file or a directory
+    afp = os.path.abspath(fp) # absolute path
+    if not os.path.isfile(afp):
+    # If a directory, collect all contained .raw files and append to 
+      if os.path.isdir(afp):
+        list_dirs = os.walk(fp)
+        for root, dirs, files in list_dirs:
+          for filename in [fn for fn in files if os.path.splitext(fn)[0] == '.raw']:
+            logging.debug(f"Parsing '{filename}'")
+            # Since we traversed the path to find this file, it should exist
+            # This could cause a race condition if someone were to delete the
+            # file while this script was running
+
+            basename, extension = os.path.splitext(filename)
+            dat_filename = basename + '.dat'
+            # Only parse .raw files
+            if extension == '.raw':
+              # Check if it has a .dat
+              if not os.path.exists(dat_filename):
+                logging.warning(f"Missing '.dat' file: '{dat_filename}'")
+              elif not os.path.isfile(dat_filename):
+                logging.warning(f"Provided '.dat' is not a file: '{dat_filename}'")
+              else:
+                args.files.append(filename)
+      else:
+        logging.warning(f"Is not a file or directory: '{fp}'")
+    else:
+      basename, extension = os.path.splitext(filename)
+      dat_filename = basename + '.dat'
+      # Only parse .raw files
+      if extension == '.raw':
+        # Check if it has a .dat
+        if not os.path.exists(dat_filename):
+          logging.warning(f"Missing '.dat' file: '{dat_filename}'")
+        elif not os.path.isfile(dat_filename):
+          logging.warning(f"Provided '.dat' is not a file: '{dat_filename}'")
+        else:
+          args.files.append(filename)
+
+  logging.info(f'Found {len(args.files)} .raw files.')
+  logging.debug(args.files)
   for fp in args.files:
     # Set working directory for files
     args.cwd = os.path.dirname(os.path.abspath(fp))
