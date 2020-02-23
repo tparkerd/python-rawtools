@@ -1,4 +1,6 @@
-# nsihdr2raw
+# NSIHDRv1 to RAW Batch Converter
+
+**NOTE: This tool will only work with NSIHDRv1 (slice format). This is not compatible with NSIHDRv2 (brick format).**
 
 This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format,
 and it extracts the midslice and generates a side-view projection of the volume.
@@ -7,18 +9,17 @@ and it extracts the midslice and generates a side-view projection of the volume.
 
 - [Input & Output](#input-&-output)
 - [Usage](#usage)
-  * [Single Project Conversion](#single-project-conversion)
-  * [Batch Conversion](#batch-conversion-linux)
+  - [Single Project Conversion](#single-project-conversion)
+  - [Batch Conversion](#batch-conversion-linux)
 - [Installation](#installation)
-  * [From Source](#from-source-recommended)
-  * [Binary Executable](#binary-executable)
+  - [From Source](#from-source-recommended)
+  - [Binary Executable](#binary-executable)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
 - [Additional Information](#additional-information)
-  * [How Data is Processed](#how-data-is-processed)
-  * [`range` File](#`.range`-file)
-  * [Byte-value Mismatch](#byte-value-mismatch)
-
+  - [How Data is Processed](#how-data-is-processed)
+  - [`range` File](#`.range`-file)
+  - [Byte-value Mismatch](#byte-value-mismatch)
 
 ## Input & Output
 
@@ -30,6 +31,7 @@ are created by the NorthStar Imaging (NSI) Software from x-ray scans.
 ### Output
 
 The output consists of 5 individual files.
+
 - 16-bit integer `.raw` volume
 - Text file, `.dat` containing volume metadata
 - Text file, `.range` containing minimum and maxmimum values from original 32-bit data (`.nsidat`)
@@ -37,7 +39,8 @@ The output consists of 5 individual files.
 - 8-bit grayscale, non-interlaced PNG, side-view projection
 
 ## Usage
-```
+
+```txt
 usage: nsihdr2raw.py [-h] [-v] [-V] [-f] FILES [FILES ...]
 
 This tool converts a NSI project from 32-bit float to 16-bit unsigned integer
@@ -52,9 +55,8 @@ optional arguments:
   -v, --verbose  Increase output verbosity
   -V, --version  show program's version number and exit
   -f, --force    Force file creation. Overwrite any existing files.
-
-  
 ```
+
 ### Single project conversion
 
 ```bash
@@ -68,7 +70,8 @@ find . -type f -iname "*.nsihdr" | while read f ; do nsihdr2raw "$f" ; done
 ```
 
 Example output
-```
+
+```txt
 Generating /media/tparker/drex/batchrawtest/Reconstruction/2_252.raw: 100%|███████████████████████████████| 19/19 [07:57<00:00, 18.50s/it]
 Generating /media/tparker/drex/batchrawtest/Reconstruction/2_252.dat
 Generating /media/tparker/drex/batchrawtest/Reconstruction/2_252-float32.range
@@ -82,6 +85,7 @@ Generating projection: 100%|█████████████████�
 ## Installation
 
 ### From source (recommended)
+
 ```bash
 git clone https://github.com/Topp-Roots-Lab/nsihdr2raw.git
 pip install -r requirements.txt
@@ -98,7 +102,7 @@ pyinstaller --clean --onefile nsihdr2raw.py
 ## Configuration
 
 Although this script was designed to be used a command line tool, its everyday
-use will be on a Windows machine, Animal, found in the x-ray suite. As such, I've 
+use will be on a Windows machine, Animal, found in the x-ray suite. As such, I've
 included a couple of other scripts (one-liner `.bat` and `.sh`) to run on a Windows
 machine. This is to allow the user to simply click on a shortcut that will fire off
 the scripts to search for and convert any NSI files in a pre-determined location.
@@ -109,15 +113,14 @@ These are the steps to set up the scripts on a Windows 10 machine with Cygwin
 installed and configured.
 
 1. Download/clone this repo.
-3. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root\nsi2raw`.
-4. Create shortcut link to `.bat` script in `D:\`.
-5. Create conversion folder: `D:\nsi2raw`.
+2. Copy `etc/batch_nsihdr2raw.bat` and `etc/batch_nsihdr2raw.sh` into `C:\Users\efX-user\AppData\Local\lxss\root\nsi2raw`.
+3. Create shortcut link to `.bat` script in `D:\`.
+4. Create conversion folder: `D:\nsi2raw`.
 
 Usage
 
 1. Copy NSI reconstruction data into conversion folder, `D:\nsi2raw`.
 2. Click/run shortcut link to `.bat` script.
-
 
 ## Troubleshooting
 
@@ -159,7 +162,7 @@ This file contains the minimum and maximum values that were stored in the origin
 files for an entire volume. Since this conversion goes from 32-bit to 16-bit format, there is
 a chance that two 32-bit values could be mapped to a single 16-bit value. Also, because the
 disk space consumed by 32-bit volumes is quite large, we chose to only keep the 16-bit `.raw`
-volumes and discard the `.nsidat` files once converted. If for some reason we need to need to 
+volumes and discard the `.nsidat` files once converted. If for some reason we need to need to
 re-create a 32-bit float volume, we could likely be able to using the `.nsihdr`, `.raw` and
 `.range`. This has not yet been tested or attempted.
 

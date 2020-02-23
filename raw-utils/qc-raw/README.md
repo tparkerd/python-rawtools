@@ -1,4 +1,4 @@
-# extract
+# Quality Control for RAW Volumes
 
 Originally, this tool extracted a slice, the n<sup>th</sup> index from a 16-bit unsigned
 integer `.raw` volume. By default, it will extract the midslice, the middle most
@@ -9,10 +9,7 @@ from a top-view and side-view of a volume.
 
 - [Input & Output](#input-&-output)
 - [Usage](#usage)
-  * [Single Project Conversion](#single-project-conversion)
-  * [Batch Conversion](#batch-conversion-linux)
 - [Troubleshooting](#troubleshooting)
-- [Additional Information](#additional-information)
 
 ## Input & Output
 
@@ -20,66 +17,76 @@ from a top-view and side-view of a volume.
 
 The input data consists of a `.raw` and its paired `.dat` file. Both of these
 can be generated either by the NorthStar Imaging (NSI) Software from exporting a
-`.raw` volume, or using the `nsihdr2raw` tool.
+`.raw` volume.
 
 ### Output
 
 The output consists of 2 types of files.
+
 - 16-bit grayscale, non-interlaced PNG, extracted side-view slice (default: middle most slice)
 - 8-bit RGBA, non-interlaced PNG, projection (brightest values across a given axis)
 
 |Example Slice|Example Projection|
 |-|-|
-|<img src="../doc/img/midslice_example.png" width="400">|<img src="../doc/img/side_projection_example.png" width="400">|
+|<img src="../../doc/img/midslice_example.png" width="400">|<img src="../../doc/img/side_projection_example.png" width="400">|
 
 ## Usage
-```
-usage: extract.py [-h] [-v] [-V] [-f] [-p PROJECTION [PROJECTION ...]]
-                  [--scale [STEP]] [-s [INDEX]] [--font-size FONT_SIZE]
-                  FILES [FILES ...]
 
-Extract a slice or generate a projection of a .RAW volume. Requires a .RAW and
-.DAT for a given volume.
+```txt
+usage: qc-raw [-h] [-v] [-V] [-f] [--si] [-p PROJECTION [PROJECTION ...]]
+                 [--scale [STEP]] [-s [INDEX]] [--font-size FONT_SIZE]
+                 PATHS [PATHS ...]
+
+Check the quality of a .RAW volume by extracting a slice or generating a
+projection. Requires a .RAW and .DAT for each volume.
 
 positional arguments:
-  FILES                 List of .raw files
+  PATHS                 Filepath to a .RAW or path to a directory that
+                        contains .RAW files.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --verbose         Increase output verbosity
+  -v, --verbose         Increase output verbosity (default: False)
   -V, --version         show program's version number and exit
   -f, --force           Force file creation. Overwrite any existing files.
+                        (default: False)
+  --si                  Print human readable sizes (e.g., 1 K, 234 M, 2 G)
+                        (default: False)
   -p PROJECTION [PROJECTION ...], --projection PROJECTION [PROJECTION ...]
                         Generate projection using maximum values for each
-                        slice. Available options: [ 'top', 'side' ].
-  --scale [STEP]        Add scale on left side of projection. Step is the
-                        number of slices between each label. Default: 100
+                        slice. Available options: [ 'top', 'side' ]. (default:
+                        None)
+  --scale [STEP]        Add scale on left side of a side projection. Step is
+                        the number of slices between each label. (default:
+                        100)
   -s [INDEX], --slice [INDEX]
-                        Extract a slice from volume. Default: midslice =
-                        floor(x / 2)
+                        Extract a slice from volume's side view. (default:
+                        floor(x/2))
   --font-size FONT_SIZE
-                        Font size of labels of scale. Default: 24
-
+                        Font size of labels of scale. (default: 24)
 ```
+
 ### Single project conversion
 
 ```bash
-python extract.py --projection --midslice 2_252.raw
+#
+qc-raw 2_252.raw -s -p side
 ```
 
 ### Batch conversion (Linux)
 
 ```bash
-find . -type f -iname "*.raw" | while read f ; do python extract.py --projection side --slice "$f" ; done
+qc-raw "/media/data" --projection side --slice
 ```
 
 Example output
-```
-2019-09-26 15:24:55,624 - [INFO]  Slice index not specified. Using midslice as default: '899'.
-Extracting slice #899: 100%|███████████████████████████████| 2971/2971 [01:50<00:00, 26.96it/s]
-2019-09-26 15:26:45,825 - [INFO]  Saving Slice #899 as /media/tparker/drex/batchrawtest/Reconstruction/2_252.s00899.png
-Generating projection: 100%|███████████████████████████████| 2971/2971 [00:13<00:00, 219.23it/s]
-2019-09-26 15:27:00,339 - [INFO]  Saving maximum slice projection as /media/tparker/drex/batchrawtest/Reconstruction/2_252.msp.png
+
+```bash
+# qc-raw /media/data/ --projection top side
+2020-02-22 22:46:36,859 - [INFO] - qc-raw.py 368 - Found 1 .raw file(s).
+2020-02-22 22:46:36,859 - [INFO] - qc-raw.py 386 - Processing '/media/data/398-1_CML247_104um.raw' (858640500 B)
+Generating side-view projection: 100%|████████████| 999/999 [00:00<00:00, 1543.58it/s]
+Generating top-down projection: 100%|█████████████| 999/999 [00:00<00:00, 1649.96it/s]
 ```
 
 ### Adding a scale
@@ -90,8 +97,7 @@ is the 501<sup>st</sup> slice.
 
 ## Troubleshooting
 
-No issues found so far. Please create an issue if you encounter a problem. 
+Check the generated log file for a list of debug statements. It appears in the
+directory where you ran the script.
 
-## Additional Information
-
-To do
+Please submit a Git Issue to report errors or make feature requests.
