@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+"""Converts NSIHDRv1 to 16-bit .RAW"""
 import argparse
 import logging
 import os
