@@ -12,6 +12,13 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageMath
 from tqdm import tqdm
 
+def sizeof_fmt(num, suffix='B', factor=1000.0):
+  units = ['','K','M','G','T','P','E','Z']
+  for unit in units:
+    if abs(num) < factor:
+      return "%3.1f %s%s" % (num, unit, suffix)
+    num /= factor
+  return "%.1f%s%s" % (num, 'Y', suffix)
 
 def read_dimensions(args, fp):
   # Get its respective .DAT file to get its dimensions
@@ -20,7 +27,7 @@ def read_dimensions(args, fp):
   if not os.path.isfile(dat_fp) or not os.path.exists(dat_fp):
     print(f'The DAT file for {fp} cannot be found. \'{dat_fp}\' cannot be found.')
     sys.exit(1)
-  logging.debug(f'.DAT Path = {dat_fp}')
+  logging.debug(f".DAT Path = '{dat_fp}'")
   with open(dat_fp, mode='r') as dfp:
     file_contents = dfp.readlines()
   file_contents = ''.join(file_contents)
@@ -75,9 +82,9 @@ def get_top_down_projection(args, fp):
     pbar.close()
 
     # Convert raw bytes to array of 16-bit values
-    logging.debug(f"raw_image_data length: {np.shape(raw_image_data)}")
+    logging.debug(f"raw_image_data shape: {np.shape(raw_image_data)}")
     arr = np.frombuffer(raw_image_data, dtype=np.uint16)
-    logging.debug(f"arr length: {len(arr)}")
+    logging.debug(f"raw_image_data pixel count: {len(arr)}")
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
     try:
       arr = raw_image_data
@@ -90,7 +97,7 @@ def get_top_down_projection(args, fp):
       logging.error(err)
       sys.exit(1)
     else:
-      logging.info(f'Saved maximum slice projection as {ofp}')
+      logging.debug(f"Saving top-down projection as '{ofp}'")
 
 def get_side_projection(args, fp):
   """Generate a projection from the profile view a volume, using its maximum values per slice
@@ -163,8 +170,8 @@ def get_side_projection(args, fp):
             img = ImageMath.eval('im/256', {'im': img }).convert('L').convert('RGBA')
             draw = ImageDraw.Draw(img)
 
-            font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), '..', 'etc', 'OpenSans-Regular.ttf'])
-            logging.debug(f'Font filepath: {font_fp}')
+            font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), '..', '..', 'etc', 'OpenSans-Regular.ttf'])
+            logging.debug(f"Font filepath: '{font_fp}'")
             font = ImageFont.truetype(font_fp, args.font_size)
             ascent, descent = font.getmetrics()
             offset = (ascent + descent) // 2
@@ -189,7 +196,7 @@ def get_side_projection(args, fp):
       logging.error(err)
       sys.exit(1)
     else:
-      logging.info(f'Saved maximum slice projection as {ofp}')
+      logging.debug(f"Saving side-view projection as '{ofp}'")
     
 def get_slice(args, fp):
   """ Extract the Nth slice out of a .RAW volume
@@ -262,59 +269,71 @@ def get_slice(args, fp):
     logging.error(err)
     sys.exit(1)
   else:
-    logging.info(f'Saving Slice #{i} as {ofp}')
+    logging.debug(f"Saving Slice #{i} as '{ofp}'")
 
 def parse_options():
   """Function to parse user-provided options from terminal
   """
-  parser = argparse.ArgumentParser(description="Extract a slice or generate a projection of a .RAW volume. Requires a .RAW and .DAT for a given volume.")
+  parser = argparse.ArgumentParser(description="Check the quality of a .RAW volume by extracting a slice or generating a projection. Requires a .RAW and .DAT for each volume.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
   parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
+  parser.add_argument("--si", action="store_true", default=False, help="Print human readable sizes (e.g., 1 K, 234 M, 2 G)")
   parser.add_argument("-p", "--projection", action="store", nargs='+', help="Generate projection using maximum values for each slice. Available options: [ 'top', 'side' ].")
-  parser.add_argument("--scale", dest="step", const=100, action="store", nargs='?', type=int, help="Add scale on left side of projection. Step is the number of slices between each label. Default: 100")
-  parser.add_argument("-s", "--slice", dest='index', const=True, nargs='?', type=int, help="Extract a slice from volume. Default: midslice = floor(x / 2)")
-  parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="Font size of labels of scale. Default: 24")
-  parser.add_argument("files", metavar='FILES', type=str, nargs='+', help='List of .raw files')
+  parser.add_argument("--scale", dest="step", const=100, action="store", nargs='?', type=int, help="Add scale on left side of a side projection. Step is the number of slices between each label. (default: 100)")
+  parser.add_argument("-s", "--slice", dest='index', const=True, nargs='?', type=int, default=argparse.SUPPRESS, help="Extract a slice from volume's side view. (default: floor(x/2))")
+  parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="Font size of labels of scale.")
+  parser.add_argument("paths", metavar='PATHS', type=str, nargs='+', help='Filepath to a .RAW or path to a directory that contains .RAW files.')
   args = parser.parse_args()
 
   # Configure logging, stderr and file logs
-  logging_level = logging.INFO
+  stream_logging_level = logging.INFO
   if args.verbose:
-    logging_level = logging.DEBUG
+    stream_logging_level = logging.DEBUG
 
   lfp = f"{dt.today().strftime('%Y-%m-%d')}_{os.path.splitext(os.path.basename(__file__))[0]}.log"
 
   logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s] - %(filename)s %(lineno)d - %(message)s")
   rootLogger = logging.getLogger()
-  rootLogger.setLevel(logging_level)
+  rootLogger.setLevel(logging.DEBUG)
 
   fileHandler = logging.FileHandler(lfp)
   fileHandler.setFormatter(logFormatter)
-  rootLogger.addHandler(fileHandler)
+  fileHandler.setLevel(logging.DEBUG)
 
   consoleHandler = logging.StreamHandler()
   consoleHandler.setFormatter(logFormatter)
+  consoleHandler.setLevel(stream_logging_level)
+  
+  rootLogger.addHandler(fileHandler)
   rootLogger.addHandler(consoleHandler)
 
   return args
 
 if __name__ == "__main__":
   args = parse_options()
-  logging.debug(f'File(s) selected: {args.files}')
+  logging.debug(f'File(s) selected: {args.paths}')
   # For each file provided...
-  paths = args.files
-  args.files = []
+  paths = args.paths
+  args.paths = []
+  logging.debug(f"Paths: {paths}")
   for fp in paths:
+    logging.debug(f"Checking path '{fp}'")
     # Check if supplied 'file' is a file or a directory
     afp = os.path.abspath(fp) # absolute path
     if not os.path.isfile(afp):
-    # If a directory, collect all contained .raw files and append to 
+      logging.debug(f"Not a file '{fp}'")
+      # If a directory, collect all contained .raw files and append to 
       if os.path.isdir(afp):
+        logging.debug(f"Is a directory '{fp}'")
         list_dirs = os.walk(fp)
         for root, dirs, files in list_dirs:
-          for filename in [fn for fn in files if os.path.splitext(fn)[0] == '.raw']:
-            logging.debug(f"Parsing '{filename}'")
+          # Convert to fully qualified paths
+          files = [ os.path.join(root, f) for f in files]
+          raw_files = [ f for f in files if os.path.splitext(f)[1] == '.raw' ]
+          logging.debug(f"Found .raw files {raw_files}")
+          for filename in raw_files:
+            logging.debug(f"Verifying '{filename}'")
             # Since we traversed the path to find this file, it should exist
             # This could cause a race condition if someone were to delete the
             # file while this script was running
@@ -329,11 +348,11 @@ if __name__ == "__main__":
               elif not os.path.isfile(dat_filename):
                 logging.warning(f"Provided '.dat' is not a file: '{dat_filename}'")
               else:
-                args.files.append(filename)
+                args.paths.append(filename)
       else:
         logging.warning(f"Is not a file or directory: '{fp}'")
     else:
-      basename, extension = os.path.splitext(filename)
+      basename, extension = os.path.splitext(fp)
       dat_filename = basename + '.dat'
       # Only parse .raw files
       if extension == '.raw':
@@ -343,21 +362,35 @@ if __name__ == "__main__":
         elif not os.path.isfile(dat_filename):
           logging.warning(f"Provided '.dat' is not a file: '{dat_filename}'")
         else:
-          args.files.append(filename)
+          args.paths.append(fp)
 
-  logging.info(f'Found {len(args.files)} .raw files.')
-  logging.debug(args.files)
-  for fp in args.files:
-    # Set working directory for files
-    args.cwd = os.path.dirname(os.path.abspath(fp))
-    fp = os.path.abspath(fp)
-    logging.info(f'Processing {fp} ({os.path.getsize(fp)} bytes)')
-    if args.index is not None:
-      if args.index is True:
-        args.index = None
-      get_slice(args, fp)
-    if args.projection is not None:
-      if 'side' in args.projection:
-        get_side_projection(args, fp)
-      if 'top' in args.projection:
-        get_top_down_projection(args, fp)
+  args.paths = list(set(args.paths))
+  logging.info(f'Found {len(args.paths)} .raw file(s).')
+  logging.debug(args.paths)
+  if 'index' not in args and not args.projection:
+    logging.warning(f"No action specified.")
+  else:
+    for fp in args.paths:
+      # Set working directory for file
+      args.cwd = os.path.dirname(os.path.abspath(fp))
+      fp = os.path.abspath(fp)
+
+      # Format file size
+      n_bytes = os.path.getsize(fp)
+      if args.si:
+        filesize = sizeof_fmt(n_bytes)
+      else:
+        filesize = f"{n_bytes} B"
+
+      # Process files
+      logging.info(f"Processing '{fp}' ({filesize})")
+      if 'index' in args and args.index is not None:
+        if args.index is True:
+          args.index = None
+        get_slice(args, fp)
+        args.index = True # re-enable slice for the next volume
+      if args.projection is not None:
+        if 'side' in args.projection:
+          get_side_projection(args, fp)
+        if 'top' in args.projection:
+          get_top_down_projection(args, fp)
