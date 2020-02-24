@@ -69,11 +69,10 @@ optional arguments:
 ### Single project conversion
 
 ```bash
-#
 qc-raw 2_252.raw -s -p side
 ```
 
-### Batch conversion (Linux)
+### Batch conversion
 
 ```bash
 qc-raw "/media/data" --projection side --slice
