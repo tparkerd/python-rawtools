@@ -112,7 +112,7 @@ def get_side_projection(args, fp):
   logging.debug(f'Volume dimensions: {x}, {y}, {z}')
 
   # Determine output location and check for conflicts
-  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}.projection-side.png')
+  ofp = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(fp)[0])}-projection-side.png')
   if os.path.exists(ofp) and os.path.isfile(ofp):
     # If file creation not forced, do not process volume, return
     if args.force == False:
@@ -370,6 +370,7 @@ if __name__ == "__main__":
   if 'index' not in args and not args.projection:
     logging.warning(f"No action specified.")
   else:
+    total_pbar = tqdm(total = len(args.paths), desc = "Total Progress")
     for fp in args.paths:
       # Set working directory for file
       args.cwd = os.path.dirname(os.path.abspath(fp))
@@ -394,3 +395,6 @@ if __name__ == "__main__":
           get_side_projection(args, fp)
         if 'top' in args.projection:
           get_top_down_projection(args, fp)
+      
+      total_pbar.update()
+    total_pbar.close()
