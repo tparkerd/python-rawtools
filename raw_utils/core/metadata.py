@@ -138,3 +138,101 @@ def read_dat(fp):
     if all(key in query.groupdict() for key in required_keys):
       return query.groupdict()
   raise ValueError(f"Unable to parse '{fp}'.")
+
+def determine_bit_depth(fp, dims, resolutions):
+    """Determine the bit depth of a .RAW based on its dimensions and slick thickness (i.e., resolution)
+
+    Args:
+        fp (str): file path to .RAW
+        dims (x, y, z): dimensions of .RAW extracted
+        resolutions (xth, yth, zth): thickness of each slice for each dimension
+
+    Returns:
+        str: numpy dtype encoding of bit depth
+    """
+    file_size = os.stat(fp).st_size
+    minimum_size = reduce(prod, dims) # get product of dimensions
+    logging.debug(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
+    if file_size == minimum_size:
+        return 'uint8'
+    elif file_size == minimum_size * 2:
+        return 'uint16'
+    elif file_size == minimum_size * 4:
+        return 'float32'
+    else:
+        if file_size < minimum_size:
+            logging.warning(f"Detected possible data corruption. File is smaller than expected '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
+            return 'uint16'
+        else:
+            logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
+            return 'uint16'
+
+def get_volume_dimensions(args, fp):
+    """Get the x, y, z dimensions of a volume.
+
+    Args:
+        args (Namespace): arguments object
+        fp (str): .DAT filepath
+
+    Returns:
+        (int, int, int): x, y, z dimensions of volume as a tuple
+
+    """
+    with open(fp, 'r') as ifp:
+        for line in ifp.readlines():
+            # logging.debug(line.strip())
+            pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
+            pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
+
+            # See if the DAT file is the newer version
+            match = re.match(pattern, line, flags=re.IGNORECASE)
+            # Otherwise, check the old version (XML)
+            if match is None:
+                match = re.match(pattern_old, line, flags=re.IGNORECASE)
+                if match is not None:
+                    logging.debug(f"XML format detected for '{fp}'")
+                    break
+            else:
+                logging.debug(f"Text/plain format detected for '{fp}'")
+                break
+
+        if match is not None:
+            logging.debug(f"Match: {match}")
+            dims = [ match.group('x'), match.group('y'), match.group('z') ]
+            dims = [ int(d) for d in dims ]
+
+            # Found the wrong number of dimensions
+            if not dims or len(dims) != 3:
+                raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
+            return dims
+        else:
+            raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'.")
+
+def get_volume_slice_thickness(args, fp):
+    """Get the x, y, z dimensions of a volume.
+
+    Args:
+        args (Namespace): arguments object
+        fp (str): .DAT filepath
+
+    Returns:
+        (int, int, int): x, y, z real-world thickness in mm
+
+    """
+    with open(fp, 'r') as ifp:
+        for line in ifp.readlines():
+            # logging.debug(line.strip())
+            pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
+            match = re.match(pattern, line, flags=re.IGNORECASE)
+            if match is None:
+                continue
+            else:
+                logging.debug(f"Match: {match}")
+                df = match.groupdict()
+                dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
+                dims = [ float(s) for s in dims ]
+                if not dims or len(dims) != 3:
+                    raise Exception(f"Unable to extract slice thickness from DAT file: '{fp}'. Found slice thickness: '{dims}'.")
+                return dims
+        return (None, None, None) # workaround for the old XML format
+
