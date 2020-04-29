@@ -60,6 +60,8 @@ def write_metadata(args, metadata):
     bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
     ofp.write(bounds)
 
+# TODO(tparker): Replace with raw_utils.core.metadata.bitdepth function
+# DUPLICATE METHOD
 def bit_depth_to_string(bit_count):
   """Convert an integer to a string representation of bit depth
 
