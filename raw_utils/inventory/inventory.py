@@ -11,7 +11,7 @@ import platform
 from __init__ import __version__
 
 def options():
-    parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description='Export a list of .RAW with associated .DAT metadata for a given filepath',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process')
