@@ -18,10 +18,15 @@ def bitdepth(name):
         TypeError: If requested type is not supported.
 
     """
+    name = str(name)
+    logging.warning(name)
     supported_types = {
         'uint8': 'UCHAR',
         'uint16': 'USHORT',
-        'float32': 'FLOAT'
+        'float32': 'FLOAT',
+        '8': 'UCHAR',
+        '16': 'USHORT',
+        '32': 'FLOAT'
     }
     if name in supported_types:
         return supported_types[name]

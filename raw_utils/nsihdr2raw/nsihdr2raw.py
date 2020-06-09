@@ -11,7 +11,8 @@ from datetime import datetime as dt
 import numpy as np
 from tqdm import tqdm
 
-from util.extract import get_maximum_slice_projection, get_slice
+from raw_utils.core.metadata import write_dat, bitdepth
+from raw_utils.core.convert.convert import scale
 
 # Global bounds for initial and target ranges per NSI project file
 INITIAL_LOWER_BOUND = None
@@ -19,20 +20,7 @@ INITIAL_UPPER_BOUND = None
 TARGET_LOWER_BOUND = None
 TARGET_UPPER_BOUND = None
 
-def scale(vi):
-  """Scales a value from one range to another range, inclusive.
-
-  This functions uses globally assigned values, min and max, of N given .nsidat
-  files
-
-  Args:
-    vi (numeric): input value 
-
-  Returns:
-    numeric: The equivalent value of the input value within a new target range  
-  """
-  return (TARGET_LOWER_BOUND + ((TARGET_UPPER_BOUND-TARGET_LOWER_BOUND)/(INITIAL_UPPER_BOUND-INITIAL_LOWER_BOUND)) * (vi-INITIAL_LOWER_BOUND))
-
+# TODO(tparker): Replace with library version of this
 def write_metadata(args, metadata):
   """Generates a .dat file from information gathered from an .nsihdr file
 
@@ -50,41 +38,16 @@ def write_metadata(args, metadata):
   dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
   output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
 
-  with open(dat_filepath, 'w') as ofp:
-    print(f'Generating {dat_filepath}')
-    ofp.write(output_string)
+  write_dat(dat_filepath, metadata['dimensions'], metadata['resolution_rounded'])
+  # with open(dat_filepath, 'w') as ofp:
+  #   print(f'Generating {dat_filepath}')
+  #   ofp.write(output_string)
 
   bounds_filepath = os.path.join(args.cwd, f'{os.path.splitext(args.output)[0]}.float32.range')
   with open(bounds_filepath, 'w') as ofp:
     print(f'Generating {bounds_filepath}')
     bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
     ofp.write(bounds)
-
-# TODO(tparker): Replace with raw_utils.core.metadata.bitdepth function
-# DUPLICATE METHOD
-def bit_depth_to_string(bit_count):
-  """Convert an integer to a string representation of bit depth
-
-  These values have been hard-coded because there can be more than one type for
-  each bit depth, but these are the ones we currently use.
-
-  Args:
-    bit_count (integer): bit depth listed in .nsihdr
-  
-  Returns:
-    str: name of bit-depth
-  """
-  # Hard-coded values because I'm not sure how NSI encodes them in their
-  # .nsihdr files
-  if bit_count == 8:
-    return 'UCHAR'
-  elif bit_count == 16:
-    return 'USHORT'
-  # Assume 32-bit floating point number
-  elif bit_count == 32:
-    return 'FLOAT'
-  else:
-    return None
 
 def read_nsihdr(args, fp):
   """Collects relative metadata from .nsihdr file
@@ -160,7 +123,7 @@ def read_nsihdr(args, fp):
       "resolution_rounded": [resolution_rounded]*3,
       "bit_depth": bit_depth,
       "zoom_factor": round(source_to_detector_distance / source_to_table_distance, 2),
-      "bit_depth_type": bit_depth_to_string(bit_depth),
+      "bit_depth_type": bitdepth(bit_depth),
       "ObjectModel": ObjectModel,
       "dimensions": dimensions
     }
@@ -226,7 +189,7 @@ def process(args, metadata):
     with open (input_filepath, mode='rb') as ifp:
       df = np.fromfile(ifp, dtype='float32') # Assume 32-bit floating point value, but this may not be true for all volumes
 
-    sdf = scale(df).astype('uint16')
+    sdf = scale(df, INITIAL_LOWER_BOUND, INITIAL_UPPER_BOUND, TARGET_LOWER_BOUND, TARGET_UPPER_BOUND).astype('uint16')
     with open(args.output, 'ab') as ofp:
       sdf.tofile(ofp)
       pbar.update(1)
@@ -299,9 +262,6 @@ if __name__ == "__main__":
       process(args, project_metadata)
       # Create .dat & .range files
       write_metadata(args, project_metadata)
-      # Extract QC files
-      get_slice(args, args.output)
-      get_maximum_slice_projection(args, args.output)
     except Exception as err:
       logging.error(err)
       raise
