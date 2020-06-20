@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Logging module"""
-import argparse
 import logging
 import os
 from datetime import datetime as dt
