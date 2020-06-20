@@ -1,11 +1,68 @@
+# -*- coding: utf-8 -*-
+"""Conversion module for RAW data"""
 import logging
 import os
-from pprint import pformat
+from time import time
 
 import numpy as np
 from tqdm import tqdm
 
-from raw_utils.core.metadata import determine_bit_depth, read_dat, write_dat
+from rawtools import dat
+from rawtools.dat import determine_bit_depth
+
+
+def main(args):
+    start_time = time()
+
+    # Collect all volumes and validate their metadata
+    try:
+        # Gather all files
+        args.files = []
+        for p in args.path:
+            for root, dirs, files in os.walk(p):
+                for filename in files:
+                    args.files.append(os.path.join(root, filename))
+        
+        # Append any loose, explicitly defined paths to .RAW files
+        args.files.extend([ f for f in args.path if f.endswith('.raw') ])
+
+        # Get all RAW files
+        args.files = [ f for f in args.files if f.endswith('.raw') ]
+        logging.debug(f"All files: {args.files}")
+        args.files = list(set(args.files)) # remove duplicates
+
+        # Set the path listing to the checked files and reset temporarily list of files
+        args.path = args.files
+        args.files = [] # accumulate metadata files
+        for fp in args.path:
+            args.files.append((fp, f"{os.path.splitext(fp)[0]}.dat"))
+
+        logging.info(f"Found {len(args.files)} volume(s).")
+        logging.debug(f"Files: {args.files}")
+
+        # Validate that a DAT file exists for each volume
+        for fp in args.files:
+            dat_fp = fp[1]
+            logging.debug(f"Validating DAT file: '{dat_fp}'")
+            # Try to extract the dimensions to make sure that the file exists
+            # TODO(tparker): generalized file format to deal with different ordering of lines
+            # and older version (XML)
+            # read_dat(dat_fp)
+            pass
+    except Exception as err:
+        logging.error(err)
+    else:
+        # For each provided directory...
+        pbar = tqdm(total = len(args.files), desc=f"Overall progress")
+        for volume_fp, dat_fp in args.files:
+            logging.debug(f"Processing '{fp}'")
+            # Convert volume(s)
+            convert(volume_fp, dat_fp, args.format)
+            pbar.update()
+        pbar.close()
+
+    logging.debug(f'Total execution time: {time() - start_time} seconds')
+
 
 
 def scale(x, a, b, c, d):
@@ -70,9 +127,9 @@ def convert(fp, dat_fp, file_format):
         fp (str): filepath to input file
     """
     logging.debug(f"convert({fp}, {dat_fp}, {file_format})")
-    dat = read_dat(dat_fp)
-    logging.debug(pformat(dat))
-    x, y, z = dat['xdim'], dat['ydim'], dat['zdim']
+    d = dat.read(dat_fp)
+    logging.debug(d)
+    x, y, z = d['xdim'], d['ydim'], d['zdim']
     logging.debug(f"Dimensions for '{fp}': {x}, {y}, {z}")
     bit_depth = determine_bit_depth(fp, (x, y, z))
     logging.debug(f"Bitdepth for '{fp}': {bit_depth}")
@@ -132,4 +189,4 @@ def convert(fp, dat_fp, file_format):
 
     # Write DAT file for converted volume
     dat_op = f'{os.path.splitext(dat_fp)[0]}-{file_format}.dat'
-    write_dat(fp = dat_op, dimensions=(x,y,z), thickness=(dat['x_thickness'], dat['y_thickness'], dat['z_thickness']), dtype=file_format, model=dat['model'] )
+    dat.write(fp = dat_op, dimensions=(x,y,z), thickness=(d['x_thickness'], d['y_thickness'], d['z_thickness']), dtype=file_format, model=d['model'] )

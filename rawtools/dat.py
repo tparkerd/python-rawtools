@@ -61,7 +61,7 @@ def determine_bit_depth(fp, dims):
             logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
             return 'uint16'
 
-def parse_object_filename(line):
+def __parse_object_filename(line):
     pattern = r"^ObjectFileName\:\s+(?P<filename>.*\.raw)$"
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
@@ -69,7 +69,7 @@ def parse_object_filename(line):
         logging.debug(f"Match: {match}")
         return match.group('filename')
 
-def parse_resolution(line):
+def __parse_resolution(line):
     """Get the x, y, z dimensions of a volume.
 
     Args:
@@ -103,7 +103,7 @@ def parse_resolution(line):
             raise Exception(f"Unable to extract dimensions from DAT file. Found dimensions: '{dims}'.")
         return dims
 
-def parse_slice_thickness(line):
+def __parse_slice_thickness(line):
     """Get the x, y, z dimensions of a volume.
 
     Args:
@@ -124,21 +124,21 @@ def parse_slice_thickness(line):
             raise Exception(f"Unable to extract slice thickness from DAT file: '{line}'. Found slice thickness: '{dims}'.")
         return dims
 
-def parse_format(line):
+def __parse_format(line):
     pattern = r"^Format\:\s+(?P<format>\w+)$"
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
         logging.debug(f"Match: {match}")
         return match.group('format')
 
-def parse_object_model(line):
+def __parse_object_model(line):
     pattern = r"^ObjectModel\:\s+(?P<object_model>\w+)$"
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
         logging.debug(f"Match: {match}")
         return match.group('object_model')
 
-def read_dat(fp):
+def read(fp):
     """Read a .DAT file
     Args:
     fp (str): filepath for .DAT file
@@ -150,19 +150,20 @@ def read_dat(fp):
         # Parse the individual lines
         for line in ifp.readlines():
             line = line.strip()
-            if (object_filename := parse_object_filename(line)) is not None:
+            if (object_filename := __parse_object_filename(line)) is not None:
                 data['ObjectFileName'] = object_filename
 
-            if (resolution := parse_resolution(line)) is not None:
+            if (resolution := __parse_resolution(line)) is not None:
                 data['xdim'], data['ydim'], data['zdim'] = resolution
+                data['dimensions'] = resolution
 
-            if (thicknesses := parse_slice_thickness(line)) is not None:
+            if (thicknesses := __parse_slice_thickness(line)) is not None:
                 data['x_thickness'], data['y_thickness'], data['z_thickness'] = thicknesses
 
-            if (file_format := parse_format(line)) is not None:
+            if (file_format := __parse_format(line)) is not None:
                 data['Format'] =  file_format
 
-            if (object_model := parse_object_model(line)) is not None:
+            if (object_model := __parse_object_model(line)) is not None:
                 data['model'] = object_model
 
 
@@ -172,7 +173,7 @@ def read_dat(fp):
       return data
     raise ValueError(f"Unable to parse '{fp}'.")
 
-def write_dat(fp, dimensions, thickness, dtype = 'uint16', model = 'DENSITY'):
+def write(fp, dimensions, thickness, dtype = 'uint16', model = 'DENSITY'):
     """Write a .DAT file
 
     Args:

@@ -1,18 +1,16 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"""Converts NSIHDRv1 to 16-bit .RAW"""
-import argparse
+"""NSIHDRv1 to RAW Batch Converter"""
 import logging
 import os
 import re
 import sys
-from datetime import datetime as dt
 
 import numpy as np
 from tqdm import tqdm
 
-from raw_utils.core.metadata import write_dat, bitdepth
-from raw_utils.core.convert.convert import scale
+from rawtools import dat
+from rawtools.convert import scale
 
 # Global bounds for initial and target ranges per NSI project file
 INITIAL_LOWER_BOUND = None
@@ -38,7 +36,7 @@ def write_metadata(args, metadata):
   dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
   output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
 
-  write_dat(dat_filepath, metadata['dimensions'], metadata['resolution_rounded'])
+  dat.write(dat_filepath, metadata['dimensions'], metadata['resolution_rounded'])
   # with open(dat_filepath, 'w') as ofp:
   #   print(f'Generating {dat_filepath}')
   #   ofp.write(output_string)
@@ -123,7 +121,7 @@ def read_nsihdr(args, fp):
       "resolution_rounded": [resolution_rounded]*3,
       "bit_depth": bit_depth,
       "zoom_factor": round(source_to_detector_distance / source_to_table_distance, 2),
-      "bit_depth_type": bitdepth(bit_depth),
+      "bit_depth_type": dat.bitdepth(bit_depth),
       "ObjectModel": ObjectModel,
       "dimensions": dimensions
     }
@@ -195,39 +193,7 @@ def process(args, metadata):
       pbar.update(1)
   pbar.close()
 
-def parseOptions():
-  """Function to parse user-provided options from terminal
-  """
-  parser = argparse.ArgumentParser(description="This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format, and it extracts the midslice and generates a side-view projection of the volume.")
-  parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-  parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
-  parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-  parser.add_argument('files', metavar='FILES', type=str, nargs='+', help='List of .nsihdr files')
-  args = parser.parse_args()
-
-  # Configure logging, stderr and file logs
-  logging_level = logging.INFO
-  if args.verbose:
-    logging_level = logging.DEBUG
-
-  lfp = f"{dt.today().strftime('%Y-%m-%d')}_{os.path.splitext(os.path.basename(__file__))[0]}.log"
-
-  logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s]  %(message)s")
-  rootLogger = logging.getLogger()
-  rootLogger.setLevel(logging_level)
-
-  fileHandler = logging.FileHandler(lfp)
-  fileHandler.setFormatter(logFormatter)
-  rootLogger.addHandler(fileHandler)
-
-  consoleHandler = logging.StreamHandler()
-  consoleHandler.setFormatter(logFormatter)
-  rootLogger.addHandler(consoleHandler)
-  return args
-
-if __name__ == "__main__":
-  args = parseOptions()
-
+def main(args):
   logging.debug(f'Converting {args.files}')
   for f in args.files:
     # Set working directory for files
