@@ -4,7 +4,7 @@ import sys
 from importlib.metadata import version
 from multiprocessing import cpu_count
 
-from rawtools import convert, generate, nsihdr, qualitycontrol, log, raw2img
+from rawtools import convert, generate, log, nsihdr, qualitycontrol, raw2img
 
 __version__ = version('rawtools')
 
@@ -50,7 +50,7 @@ def raw_convert():
     args.path = list(set(args.path)) # remove any duplicates
 
     # Run module
-    convert.main(args)
+    return convert.main(args)
 
 def raw_generate():
     description = "Convert .raw 3d volume file to typical image format slices"
@@ -66,7 +66,7 @@ def raw_generate():
     args.module_name = 'generate'
     log.configure(args)
 
-    generate.main(args)
+    return generate.main(args)
 
 def raw_nsihdr():
     description = "This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format, and it extracts the midslice and generates a side-view projection of the volume."
@@ -81,7 +81,7 @@ def raw_nsihdr():
     args.module_name = 'nsihdr'
     log.configure(args)
 
-    rt.nsihdr.main(args)
+    return nsihdr.main(args)
 
 def raw_qc():
     """Quality control tools"""
@@ -102,7 +102,7 @@ def raw_qc():
     args.module_name = 'qc'
     log.configure(args)
 
-    qualitycontrol.main(args)
+    return qualitycontrol.main(args)
 
 
 def raw_image():
@@ -128,7 +128,32 @@ def raw_image():
     args.module_name = 'raw2img'
     log.configure(args)
 
-    raw2img.main(args)
+    return raw2img.main(args)
+
+def raw_scale():
+    description="Scale down a .RAW volume to produce another .RAW and .DAT file"
+    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-t", "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
+    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
+    parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
+    parser.add_argument("--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
+    parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
+
+    # Make sure user does not request more CPUs can available
+    if args.threads > cpu_count():
+        args.threads = cpu_count()
+
+    # Change format to always be lowercase
+    args.format = args.format.lower()
+    args.path = list(set(args.path)) # remove any duplicates
+
+    args.module_name = 'raw2img'
+    log.configure(args)
+
+    return scale.main(args)
+
 
 if __name__ == "__main__":
     sys.exit(main())  # pragma: no cover
