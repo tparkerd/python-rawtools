@@ -47,6 +47,7 @@ def determine_bit_depth(fp, dims):
     file_size = os.stat(fp).st_size
     minimum_size = reduce(lambda x,y: x * y, dims) # get product of dimensions
     logging.debug(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
+    expected_filesize = minimum_size * 2
     if file_size == minimum_size:
         return 'uint8'
     elif file_size == minimum_size * 2:
@@ -54,11 +55,11 @@ def determine_bit_depth(fp, dims):
     elif file_size == minimum_size * 4:
         return 'float32'
     else:
-        if file_size < minimum_size:
-            logging.warning(f"Detected possible data corruption. File is smaller than expected '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
+        if file_size < expected_filesize:
+            logging.warning(f"Detected possible data corruption. File is smaller than expected '{fp}'. Expected at <{expected_filesize}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
             return 'uint16'
         else:
-            logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
+            logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{expected_filesize}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
             return 'uint16'
 
 def __parse_object_filename(line):
