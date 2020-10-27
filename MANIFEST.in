@@ -3,6 +3,7 @@ include CONTRIBUTING.rst
 include HISTORY.rst
 include LICENSE
 include README.rst
+include rawtools/assets/OpenSans-Regular.ttf
 
 recursive-include tests *
 recursive-exclude * __pycache__
