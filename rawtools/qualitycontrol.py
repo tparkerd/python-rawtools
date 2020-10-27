@@ -224,6 +224,11 @@ def get_side_projection(args, fp):
   buffer_size = x * y * np.dtype('uint16').itemsize
   logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
   
+  # Load font
+  font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), 'assets', 'OpenSans-Regular.ttf'])
+  logging.debug(f"Font filepath: '{font_fp}'")
+  font = ImageFont.truetype(font_fp, args.font_size)
+
   pbar = tqdm(total = z, desc="Generating side-view projection") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     # Load in the first slice
@@ -267,9 +272,6 @@ def get_side_projection(args, fp):
             img = ImageMath.eval('im/256', {'im': img }).convert('L').convert('RGBA')
             draw = ImageDraw.Draw(img)
 
-            font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), 'assets', 'OpenSans-Regular.ttf'])
-            logging.debug(f"Font filepath: '{font_fp}'")
-            font = ImageFont.truetype(font_fp, args.font_size)
             ascent, descent = font.getmetrics()
             offset = (ascent + descent) // 2
 
