@@ -115,6 +115,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageMath
 from tqdm import tqdm
 from rawtools import dat
 
+font = None
+
 def rawfp2datfp(fp):
   directory = os.path.dirname(fp)
   name = os.path.splitext(os.path.basename(fp))[0]
@@ -158,7 +160,8 @@ def get_top_down_projection(args, fp):
   buffer_size = x * y * np.dtype('uint16').itemsize
   logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
 
-  pbar = tqdm(total = z, desc="Generating top-down projection") # progress bar
+  if not args.verbose:
+    pbar = tqdm(total = z, desc="Generating top-down projection") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     # Load in the first slice
     byte_slice = ifp.read(buffer_size) # Byte sequence
@@ -173,8 +176,10 @@ def get_top_down_projection(args, fp):
       raw_image_data = np.maximum(raw_image_data, byte_sequence_max_values)
       # # Read the next slice & update progress bar
       byte_slice = ifp.read(buffer_size)
-      pbar.update(1)
-    pbar.close()
+      if not args.verbose:
+        pbar.update(1)
+    if not args.verbose:
+      pbar.close()
 
     # Convert raw bytes to array of 16-bit values
     logging.debug(f"raw_image_data shape: {np.shape(raw_image_data)}")
@@ -202,6 +207,7 @@ def get_side_projection(args, fp):
     fp (str): filepath for a .RAW volume
 
   """
+  global font
   # Extract the resolution from .DAT file
   dat_fp = rawfp2datfp(fp)
   logging.debug(f"{dat_fp=}")
@@ -223,13 +229,9 @@ def get_side_projection(args, fp):
   # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
   buffer_size = x * y * np.dtype('uint16').itemsize
   logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
-  
-  # Load font
-  font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), 'assets', 'OpenSans-Regular.ttf'])
-  logging.debug(f"Font filepath: '{font_fp}'")
-  font = ImageFont.truetype(font_fp, args.font_size)
 
-  pbar = tqdm(total = z, desc="Generating side-view projection") # progress bar
+  if not args.verbose:
+    pbar = tqdm(total = z, desc=f"Generating side-view projection for '{os.path.basename(fp)}'") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     # Load in the first slice
     byte_slice = ifp.read(buffer_size) # Byte sequence
@@ -249,8 +251,10 @@ def get_side_projection(args, fp):
       raw_image_data.extend(byte_sequence_max_values)
       # Read the next slice & update progress bar
       byte_slice = ifp.read(buffer_size)
-      pbar.update(1)
-    pbar.close()
+      if not args.verbose:
+        pbar.update(1)
+    if not args.verbose:
+      pbar.close()
 
     # Convert raw bytes to array of 16-bit values
     logging.debug(f"raw_image_data length: {len(raw_image_data)}")
@@ -345,7 +349,8 @@ def get_slice(args, fp):
   logging.debug(f'Relative byte indices for extracted slice: <{start_byte}, {end_byte}>')
   logging.debug(f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes')
   
-  pbar = tqdm(total = z, desc=f"Extracting slice #{i}") # progress bar
+  if not args.verbose:
+    pbar = tqdm(total = z, desc=f"Extracting slice #{i}") # progress bar
   with open(fp, mode='rb', buffering=buffer_size) as ifp:
     byte_slice = ifp.read(buffer_size) # Byte sequence
     raw_byte_string = bytearray()
@@ -354,8 +359,10 @@ def get_slice(args, fp):
       ith_byte_sequence = byte_slice[start_byte : end_byte]
       raw_byte_string.extend(ith_byte_sequence)
       byte_slice = ifp.read(buffer_size)
-      pbar.update(1)
-    pbar.close()
+      if not args.verbose:
+        pbar.update(1)
+    if not args.verbose:
+      pbar.close()
 
   # Convert raw bytes to array of 16-bit values
   arr = np.frombuffer(raw_byte_string, dtype=np.uint16)
@@ -374,6 +381,8 @@ def get_slice(args, fp):
 
 def main(args):
   """Begin processing"""
+  global font
+
   logging.debug(f'File(s) selected: {args.path}')
   # For each file provided...
   paths = args.path
@@ -432,7 +441,8 @@ def main(args):
   if 'index' not in args and not args.projection:
     logging.warning(f"No action specified.")
   else:
-    total_pbar = tqdm(total = len(args.path), desc = "Total Progress")
+    if not args.verbose:
+      total_pbar = tqdm(total = len(args.path), desc = "Total Progress")
     for fp in args.path:
       # Set working directory for file
       args.cwd = os.path.dirname(os.path.abspath(fp))
@@ -446,7 +456,11 @@ def main(args):
         filesize = f"{n_bytes} B"
 
       # Process files
-      logging.info(f"Processing '{fp}' ({filesize})")
+        # Load font
+      font_fp = '/'.join([os.path.dirname(os.path.realpath(__file__)), 'assets', 'OpenSans-Regular.ttf'])
+      logging.debug(f"Font filepath: '{font_fp}'")
+      font = ImageFont.truetype(font_fp, args.font_size)
+      logging.debug(f"Processing '{fp}' ({filesize})")
       if 'index' in args and args.index is not None:
         if args.index is True:
           args.index = None
@@ -458,5 +472,7 @@ def main(args):
         if 'top' in args.projection:
           get_top_down_projection(args, fp)
       
-      total_pbar.update()
-    total_pbar.close()
+      if not args.verbose:
+        total_pbar.update()
+    if not args.verbose:
+      total_pbar.close()
