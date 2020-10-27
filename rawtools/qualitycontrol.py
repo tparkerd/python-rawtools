@@ -263,12 +263,12 @@ def get_side_projection(args, fp):
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
     try:
       logging.debug("Reshaping image")
-      logging.debug(f"arr = arr.reshape([{z}, {x}])")
-      arr = arr.reshape([z, x])
+      logging.debug(f"arr = arr.reshape([{x}, {z}])")
+      arr = arr.reshape([x, z])
       logging.debug(f"array_buffer = arr.tobytes()")
       array_buffer = arr.tobytes()
-      logging.debug(f"pngImage = Image.new(\"I\", {arr.T.shape})")
-      pngImage = Image.new("I", arr.T.shape)
+      logging.debug(f"pngImage = Image.new(\"I\", {arr.shape})")
+      pngImage = Image.new("I", arr.shape)
       logging.debug(f"pngImage.frombytes(array_buffer, 'raw', \"I;16\")")
       pngImage.frombytes(array_buffer, 'raw', "I;16")
       logging.debug(f"pngImage.save(ofp)")
