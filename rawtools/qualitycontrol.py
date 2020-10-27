@@ -262,16 +262,16 @@ def get_side_projection(args, fp):
     logging.debug(f"arr length: {len(arr)}")
     # Change the array from a byte sequence to a 2-D array with the same dimensions as the image
     try:
-      arr = arr.reshape([z, x])
       logging.debug(f"arr = arr.reshape([{z}, {x}])")
-      array_buffer = arr.tobytes()
+      arr = arr.reshape([z, x])
       logging.debug(f"array_buffer = arr.tobytes()")
-      pngImage = Image.new("I", arr.T.shape)
+      array_buffer = arr.tobytes()
       logging.debug(f"pngImage = Image.new(\"I\", {arr.T.shape})")
-      pngImage.frombytes(array_buffer, 'raw', "I;16")
+      pngImage = Image.new("I", arr.T.shape)
       logging.debug(f"pngImage.frombytes(array_buffer, 'raw', \"I;16\")")
-      pngImage.save(ofp)
+      pngImage.frombytes(array_buffer, 'raw', "I;16")
       logging.debug(f"pngImage.save(ofp)")
+      pngImage.save(ofp)
 
       if 'step' in args and args.step:
         try:
