@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"""NSIHDRv1 to RAW Batch Converter"""
+"""NSIHDR to RAW Batch Converter"""
 import logging
 import os
 import re
 import sys
+from multiprocessing import Pool, cpu_count
+from time import time
 
 import numpy as np
 from tqdm import tqdm
@@ -12,228 +14,202 @@ from tqdm import tqdm
 from rawtools import dat
 from rawtools.convert import scale
 
-# Global bounds for initial and target ranges per NSI project file
-INITIAL_LOWER_BOUND = None
-INITIAL_UPPER_BOUND = None
-TARGET_LOWER_BOUND = None
-TARGET_UPPER_BOUND = None
+# Load in NSI SDK
+currentdir = os.path.dirname(os.path.realpath(__file__))
+rootdir = os.path.dirname(os.path.dirname(currentdir))
+includesdir = os.path.join(rootdir, "bin")
+sys.path.append(includesdir)
+from rawtools import nsiefx
 
-# TODO(tparker): Replace with library version of this
+
 def write_metadata(args, metadata):
-  """Generates a .dat file from information gathered from an .nsihdr file
+	"""Generates a .dat file from information gathered from an .nsihdr file
 
-  NOTE(tparker): Temporarily, I am writing the minimum and maximum values found
-  in the 32-bit float version of the files in case we ever need to convert the
-  uint16 version back to float32.
+	NOTE(tparker): Temporarily, I am writing the minimum and maximum values found
+	in the 32-bit float version of the files in case we ever need to convert the
+	uint16 version back to float32.
 
-  Args:
-    args (ArgumentParser): user arguments from `argparse`
-    metadata (dict): dictionary of metadata created from reading .nsihdr file
-  """
-  ObjectFileName = args.output
-  resolution = ' '.join(metadata['dimensions'])
-  slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
-  dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
-  output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
+	Args:
+		args (ArgumentParser): user arguments from `argparse`
+		metadata (dict): dictionary of metadata created from reading .nsihdr file
+	"""
+	ObjectFileName = args.output
+	resolution = ' '.join(metadata['dimensions'])
+	slice_thickness = ' '.join([ str(rr) for rr in metadata['resolution_rounded'] ])
+	dat_filepath = f'{os.path.splitext(args.output)[0]}.dat'
+	output_string = f"""ObjectFileName: {ObjectFileName}\nResolution:     {resolution}\nSliceThickness: {slice_thickness}\nFormat:         {metadata['bit_depth_type']}\nObjectModel:    {metadata['ObjectModel']}"""
 
-  dat.write(dat_filepath, metadata['dimensions'], metadata['resolution_rounded'])
-  # with open(dat_filepath, 'w') as ofp:
-  #   print(f'Generating {dat_filepath}')
-  #   ofp.write(output_string)
+	dat.write(dat_filepath, metadata['dimensions'], metadata['resolution_rounded'])
+	# with open(dat_filepath, 'w') as ofp:
+	#   print(f'Generating {dat_filepath}')
+	#   ofp.write(output_string)
 
-  bounds_filepath = os.path.join(args.cwd, f'{os.path.splitext(args.output)[0]}.float32.range')
-  with open(bounds_filepath, 'w') as ofp:
-    print(f'Generating {bounds_filepath}')
-    bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
-    ofp.write(bounds)
+	bounds_filepath = os.path.join(args.cwd, f'{os.path.splitext(args.output)[0]}.float32.range')
+	with open(bounds_filepath, 'w') as ofp:
+		print(f'Generating {bounds_filepath}')
+		bounds = f'{INITIAL_LOWER_BOUND} {INITIAL_UPPER_BOUND}'
+		ofp.write(bounds)
 
 def read_nsihdr(args, fp):
-  """Collects relative metadata from .nsihdr file
+	"""Collects relative metadata from .nsihdr file
 
-  Args:
-    fp (str): Input filepath to an .nsihdr file
+	Args:
+		fp (str): Input filepath to an .nsihdr file
 
-  Returns:
-    dict: metadata about NSI project
-  """
-  global INITIAL_LOWER_BOUND
-  global INITIAL_UPPER_BOUND
+	Returns:
+		dict: metadata about NSI project
+	"""
+	global INITIAL_LOWER_BOUND
+	global INITIAL_UPPER_BOUND
 
-  with open(fp, 'r') as ifp:
-    document = ifp.readlines()
+	with open(fp, 'r') as ifp:
+		document = ifp.readlines()
 
-    nsidat_pattern = r'(?P<prefix><Name>)(?P<filename>.*.nsidat)'
-    detector_distance_pattern = r'<source to detector distance>(?P<value>[\d\.]+)'
-    table_distance_pattern = r'<source to table distance>(?P<value>[\d\.]+)'
-    bit_depth_pattern = r'(?P<prefix><bit depth>)(?P<value>\d+)'
-    dimensions_pattern = r'(?P<prefix><resolution>)(?P<x>\d+)\s+(?P<num_slices>\d+)\s+(?P<z>\d+)'
-    data_range_pattern = r'<DataRange>\s+(?P<lower_bound>\-?\d+\.\d+)\s+(?P<upper_bound>\-?\d+\.\d+)'
+		source_to_detector_distance = None
+		source_to_table_distance = None
+		bit_depth = None
+		nsidats = []
 
-    source_to_detector_distance = None
-    source_to_table_distance = None
-    bit_depth = None
-    nsidats = []
-    for line in document:
-      nsidat_query = re.search(nsidat_pattern, line)
-      if nsidat_query:
-        nsidats.append(nsidat_query.group('filename'))
+		bit_depth_query = re.search(bit_depth_pattern, line)
+		if bit_depth_query:
+			bit_depth = int(bit_depth_query.group('value'))
 
-      detector_query = re.search(detector_distance_pattern, line)
-      if detector_query:
-        source_to_detector_distance = float(detector_query.group('value'))
+		dimensions_query = re.search(dimensions_pattern, line)
+		if dimensions_query:
+			dimensions = [ dimensions_query.group('x'), dimensions_query.group('z'), dimensions_query.group('num_slices') ]
 
-      table_query = re.search(table_distance_pattern, line)
-      if table_query:
-        source_to_table_distance = float(table_query.group('value'))
+		# Check if the .nsihdr already contains the data range
+		# If it exists, we only have to read the .nsidat files once instead of twice
+		data_range_query = re.search(data_range_pattern, line)
+		if data_range_query:
+			INITIAL_LOWER_BOUND = float(data_range_query.group('lower_bound'))
+			INITIAL_UPPER_BOUND = float(data_range_query.group('upper_bound'))
 
-      bit_depth_query = re.search(bit_depth_pattern, line)
-      if bit_depth_query:
-        bit_depth = int(bit_depth_query.group('value'))
+		# Temporarily set pitch as 0.127, as it should not change until we get a
+		# new detector
+		pitch = 0.127
 
-      dimensions_query = re.search(dimensions_pattern, line)
-      if dimensions_query:
-        dimensions = [ dimensions_query.group('x'), dimensions_query.group('z'), dimensions_query.group('num_slices') ]
+		# TODO(tparker): As far as I am aware, the data will always be of type DENSITY
+		ObjectModel = 'DENSITY'
 
-      # Check if the .nsihdr already contains the data range
-      # If it exists, we only have to read the .nsidat files once instead of twice
-      data_range_query = re.search(data_range_pattern, line)
-      if data_range_query:
-        INITIAL_LOWER_BOUND = float(data_range_query.group('lower_bound'))
-        INITIAL_UPPER_BOUND = float(data_range_query.group('upper_bound'))
+		resolution = ( pitch / source_to_detector_distance ) * source_to_table_distance
+		resolution_rounded = round(resolution, 4)
+		nsidats.sort() # make sure that the files are in alphanumeric order
 
-      # Temporarily set pitch as 0.127, as it should not change until we get a
-      # new detector
-      pitch = 0.127
+		return {
+			"datafiles": nsidats,
+			"source_to_detector_distance": source_to_detector_distance,
+			"source_to_table_distance": source_to_table_distance,
+			"pitch": pitch,
+			"resolution": resolution,
+			"resolution_rounded": [resolution_rounded]*3,
+			"bit_depth": bit_depth,
+			"zoom_factor": round(source_to_detector_distance / source_to_table_distance, 2),
+			"bit_depth_type": dat.bitdepth(bit_depth),
+			"ObjectModel": ObjectModel,
+			"dimensions": dimensions
+		}
 
-      # TODO(tparker): As far as I am aware, the data will always be of type DENSITY
-      ObjectModel = 'DENSITY'
+def process(args, fp, ofp):
+	"""Converts NSIHDR files to a single .RAW + .DAT
 
-    resolution = ( pitch / source_to_detector_distance ) * source_to_table_distance
-    resolution_rounded = round(resolution, 4)
-    nsidats.sort() # make sure that the files are in alphanumeric order
+	Args:
+		args (ArgumentParser): user arguments from `argparse`
+		fp (str): filepath to input .NSIHDR file
+		ofp (str): filepath to output .RAW file
+	"""
+	logging.debug(f'{fp=}')
 
-    return {
-      "datafiles": nsidats,
-      "source_to_detector_distance": source_to_detector_distance,
-      "source_to_table_distance": source_to_table_distance,
-      "pitch": pitch,
-      "resolution": resolution,
-      "resolution_rounded": [resolution_rounded]*3,
-      "bit_depth": bit_depth,
-      "zoom_factor": round(source_to_detector_distance / source_to_table_distance, 2),
-      "bit_depth_type": dat.bitdepth(bit_depth),
-      "ObjectModel": ObjectModel,
-      "dimensions": dimensions
-    }
+	with nsiefx.open(fp) as volume:
+		v = volume # for shorthand laziness
 
-def set_initial_bounds(metadata):
-  """Scans .nsidat files for minimum and maximum values and sets them globally
+		# resolution (voxels)
+		width, height, depth = v.slice_width(), v.slice_height(), v.num_slices()
+		# min point (mm), max point (mm), voxel size (mm)
+		vmin, vmax, voxel_size = v.vmin(), v.vmax(), v.voxel_size()
+		# data min/max voxel values
+		data_min, data_max = v.data_min(), v.data_max()
+		logging.debug(f'Resolution (voxels): {[width, height, depth]}')
+		logging.debug(f'Min. point (mm): {vmin}')
+		logging.debug(f'Max. point (mm): {vmax}')
+		logging.debug(f'Voxel size (mm): {voxel_size}')
+		logging.debug(f'Min/max data values: {[data_min, data_max]}')
 
-  Args:
-    files (list of str): list of filepaths to .nsidat files
-  
-  """
-  global INITIAL_LOWER_BOUND
-  global INITIAL_UPPER_BOUND
+		dname = os.path.dirname(fp)
+		bname = os.path.basename(os.path.splitext(fp)[0])
+		export_path = os.path.join(dname, f'{bname}.raw')
+		logging.debug(f"{export_path=}")
+		dat_path = os.path.join(dname, f'{bname}.dat')
+		logging.debug(f"{dat_path=}")
 
-  files = metadata['datafiles']
-  for f in tqdm(files, desc=f"Determining bounds for {metadata['nsihdr_fp']}"):
-    input_filepath = os.path.join(args.cwd, f)
-    with open(input_filepath, mode='rb') as ifp:
-      # Assume 32-bit floating point value
-      # NOTE(tparker): This may not be true for all volumes
-      df = np.fromfile(ifp, dtype='float32')
+		dat.write(dat_path, dimensions = (width, height, depth), thickness = voxel_size)
 
-      if INITIAL_LOWER_BOUND is None:
-        INITIAL_LOWER_BOUND = df.min()
-      else:
-        INITIAL_LOWER_BOUND = min(INITIAL_LOWER_BOUND, df.min())
-      if INITIAL_UPPER_BOUND is None:
-        INITIAL_UPPER_BOUND = df.max()
-      else:
-        INITIAL_UPPER_BOUND = max(INITIAL_UPPER_BOUND, df.max())
+		if os.path.exists(export_path) and args.force == True:
+			os.remove(export_path)
+			logging.warning(f"Removed old '{export_path}'")
+		if os.path.exists(dat_path) and args.force == True:
+			os.remove(dat_path)
+			logging.warning(f"Removed old '{dat_path}'")
 
-      logging.debug(f'Current bounds: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
-  print(f'Bounds set: [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}]')
-
-def process(args, metadata):
-  """Coalesces and converts .nsidat files to a single .raw
-
-  Args:
-    args (ArgumentParser): user arguments from `argparse`
-    metadata (dict): dictionary of metadata created from reading .nsihdr file
-  """
-  # Since the .raw file is generated by appending the data to the end of a file, you have
-  # to remove any existing .raw volume if generation is forced
-  try:
-    # Determine output location and check for conflicts
-    if os.path.exists(args.output) and os.path.isfile(args.output):
-      # If file creation not forced, do not process volume, return
-      if args.force == False:
-        logging.info(f"File already exists: '{args.output}.' Aborting...")
-        sys.exit(0)
-      # Otherwise, remove the existing .raw volume
-      else:
-        logging.info(f"File already exists. Deleting '{args.output}'.")
-        os.remove(args.output)
-  except Exception as err:
-    logging.error(err)
-    raise
-
-  pbar = tqdm(total = len(metadata['datafiles']), desc=f'Generating {args.output}')
-  for f in metadata['datafiles']:
-    input_filepath = os.path.join(args.cwd, f)
-    df = None
-    with open (input_filepath, mode='rb') as ifp:
-      df = np.fromfile(ifp, dtype='float32') # Assume 32-bit floating point value, but this may not be true for all volumes
-
-    sdf = scale(df, INITIAL_LOWER_BOUND, INITIAL_UPPER_BOUND, TARGET_LOWER_BOUND, TARGET_UPPER_BOUND).astype('uint16')
-    with open(args.output, 'ab') as ofp:
-      sdf.tofile(ofp)
-      pbar.update(1)
-  pbar.close()
+		with open(export_path, 'ab') as raw_ofp:
+			pbar = tqdm(total= depth, desc=f"Exporting {bname}")
+			for n in range(depth):
+				cross_section = v.read_slice(n)
+				cross_section = np.array(cross_section, dtype="float32")
+				cross_section = scale(cross_section, data_min, data_max, 0, 65535).astype(np.uint16)
+				cross_section.tofile(raw_ofp)
+				pbar.update()
+			pbar.close()
 
 def main(args):
-  logging.debug(f'Converting {args.files}')
-  for f in args.files:
-    # Set working directory for files
-    args.cwd = os.path.dirname(f)
-    # Set filename being processed
-    args.filename = f
-    project_metadata = read_nsihdr(args, f)
-    project_metadata['nsihdr_fp'] = args.filename
+	start_time = time()
 
-    # Set bounds
-    TARGET_LOWER_BOUND = 0
-    TARGET_UPPER_BOUND = (2**project_metadata['bit_depth'] - 1)
-    try:
-      args.output = os.path.join(args.cwd, f'{os.path.basename(os.path.splitext(args.filename)[0])}.raw')
-      # Determine output location and check for conflicts
-      if os.path.exists(args.output) and os.path.isfile(args.output):
-        # If file creation not forced, do not process volume, return
-        if args.force == False:
-          logging.info(f"File already exists. Skipping {args.output}.")
-          sys.exit(0)
-        # Otherwise, user forced file generation
-        else:
-          logging.warning(f"FileExistsWarning - {args.output}. File will be overwritten.")
-      
-      # Base case: if the data range was found in the .nsihdr, no need to check .nsidat files
-      if INITIAL_LOWER_BOUND is not None and INITIAL_UPPER_BOUND is not None:
-        logging.info(f'Bounds located in {args.filename}. Bounds set to [{INITIAL_LOWER_BOUND}, {INITIAL_UPPER_BOUND}].')
-      else:
-        set_initial_bounds(project_metadata)
+	try:
+		# Gather all files
+		args.files = []
+		for p in args.path:
+			for root, dirs, files in os.walk(p):
+				for filename in files:
+					args.files.append(os.path.join(root, filename))
 
-      # Generate .RAW volume
-      process(args, project_metadata)
-      # Create .dat & .range files
-      write_metadata(args, project_metadata)
-    except Exception as err:
-      logging.error(err)
-      raise
+		# Append any loose, explicitly defined paths to .RAW files
+		args.files.extend([ f for f in args.path if f.endswith('.nsihdr') ])
 
-    # Reset bounds after file has been processed
-    INITIAL_LOWER_BOUND = None
-    INITIAL_UPPER_BOUND = None
-    TARGET_LOWER_BOUND = None
-    TARGET_UPPER_BOUND = None
+		# Filter out non-NSIHDR files
+		args.files = [ f for f in args.files if f.endswith('.nsihdr') ]
+
+		# Get all RAW files
+		logging.debug(f"All files: {args.files}")
+		args.files = list(set(args.files)) # remove duplicates
+		logging.info(f"Found {len(args.files)} volume(s).")
+		logging.debug(f"Unique files: {args.files}")
+	except Exception as err:
+		logging.error(err)
+		raise err
+	else:
+		# For each provided volume...
+		pbar = tqdm(total = len(args.files), desc=f"Overall progress")
+		for fp in args.files:
+			logging.debug(f"Processing '{fp}'")
+			ofp_directory = os.path.dirname(fp)
+			logging.debug(f"{ofp_directory=}")
+			ofp_filename = os.path.basename(os.path.splitext(fp)[0])
+			logging.debug(f"{ofp_filename=}")
+			ofp = os.path.join(ofp_directory, ofp_filename)
+			logging.debug(f"{ofp=}")
+
+			# Determine output location and check for conflicts
+			if os.path.exists(ofp) and os.path.isfile(ofp):
+				# If file creation not forced, do not process volume, return
+				if args.force == False:
+					logging.info(f"File already exists. Skipping {ofp}.")
+					continue
+				# Otherwise, user forced file generation
+				else:
+					logging.warning(f"FileExistsWarning - {ofp}. File will be overwritten.")
+
+			# Extract slices and cast to desired datatype
+			process(args, fp, ofp)
+
+			pbar.update()
+		pbar.close()

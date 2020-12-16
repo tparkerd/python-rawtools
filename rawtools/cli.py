@@ -81,7 +81,7 @@ def raw_nsihdr():
     args.module_name = 'nsihdr'
     log.configure(args)
 
-    rt.nsihdr.main(args)
+    nsihdr.main(args)
 
 def raw_qc():
     """Quality control tools"""

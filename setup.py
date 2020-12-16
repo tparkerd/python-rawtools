@@ -2,7 +2,10 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
+import distutils
+import platform
+
+from setuptools import find_packages, setup
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -10,11 +13,24 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy', 'tqdm', 'Pillow', ]
+requirements = ['numpy==1.19.3', 'tqdm', 'Pillow', ]
 
 setup_requirements = ['pytest-runner', ]
 
 test_requirements = ['pytest>=3', ]
+
+# Determine the correct platform
+system = platform.system()
+arch, _ = platform.architecture()
+if system == 'Linux':
+    if arch == '64bit':
+        efxsdk = 'lib/linux64/efX-SDK.so'
+    else:
+        efxsdk = 'lib/linux32/efX-SDK.so'
+if system == 'Windows':
+    efxsdk = 'lib/win32/efX-SDK.dll'
+if system == 'Darwin':
+    efxsdk = 'lib/mac32/efX-SDK'
 
 setup(
     author="Tim Parker",
@@ -32,7 +48,7 @@ setup(
         'console_scripts': [
             'raw-convert=rawtools.cli:raw_convert',
             'raw-generate=rawtools.cli:raw_generate',
-            'raw-nsihdr=rawtools.cli:raw_nsihdr',
+            'nsihdr2raw=rawtools.cli:raw_nsihdr',
             'raw2img=rawtools.cli:raw_image',
             'raw-qc=rawtools.cli:raw_qc'
         ],
@@ -40,6 +56,9 @@ setup(
     install_requires=requirements,
     long_description=readme + '\n\n' + history,
     include_package_data=True,
+    package_data = {
+        "efxsdk": [efxsdk]
+    },
     keywords='rawtools',
     name='rawtools',
     packages=find_packages(include=['rawtools', 'rawtools.*']),
