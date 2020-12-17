@@ -4,7 +4,7 @@ import sys
 from importlib.metadata import version
 from multiprocessing import cpu_count
 
-from rawtools import convert, generate, nsihdr, qualitycontrol, log, raw2img
+from rawtools import convert, generate, log, nsihdr, qualitycontrol, raw2img
 
 __version__ = version('rawtools')
 
@@ -75,13 +75,20 @@ def raw_nsihdr():
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-    parser.add_argument('path', metavar='PATH', type=str, nargs='+', help='List of .nsihdr files')
+    parser.add_argument("--gui", action="store_true", default=False, help="Enable GUI")
+    parser.add_argument('path', metavar='PATH', type=str, nargs="+", help='List of .nsihdr files')
     args = parser.parse_args()
 
     args.module_name = 'nsihdr'
     log.configure(args)
 
-    nsihdr.main(args)
+    # Use a GUI to select the source directory
+    if args.gui == True:
+        from rawtools.gui import nsihdr
+        nsihdr.App(args)
+    # Otherwise, assume CLI use
+    else:
+        nsihdr.main(args)
 
 def raw_qc():
     """Quality control tools"""
