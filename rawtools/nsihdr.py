@@ -52,8 +52,6 @@ def process(args, fp, export_path):
 		bname = os.path.basename(os.path.splitext(fp)[0])
 		dat_path = os.path.join(dname, f'{bname}.dat')
 
-		dat.write(dat_path, dimensions = (width, height, depth), thickness = voxel_size)
-		logging.debug(f"Generated '{dat_path}'")
 
 		if os.path.exists(export_path) and args.force == True:
 			os.remove(export_path)
@@ -61,6 +59,9 @@ def process(args, fp, export_path):
 		if os.path.exists(dat_path) and args.force == True:
 			os.remove(dat_path)
 			logging.warning(f"Removed old '{dat_path}'")
+
+		dat.write(dat_path, dimensions = (width, height, depth), thickness = voxel_size)
+		logging.debug(f"Generated '{dat_path}'")
 
 		with open(export_path, 'ab') as raw_ofp:
 			if not args.verbose:
@@ -107,9 +108,9 @@ def main(args):
 				bname = os.path.basename(os.path.splitext(fp)[0])
 				export_path = os.path.join(dname, f'{bname}.raw')
 				if os.path.exists(export_path) and os.path.isfile(export_path):
-					skipped_volumes.append(export_path)
+					skipped_volumes.append(fp)
 				else:
-					kept_volumes.append(export_path)
+					kept_volumes.append(fp)
 			args.files = kept_volumes
 			total_volumes = len(kept_volumes) + len(skipped_volumes)
 			logging.debug(f"{kept_volumes=}")

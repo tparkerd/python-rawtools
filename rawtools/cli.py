@@ -4,19 +4,12 @@ import sys
 from importlib.metadata import version
 from multiprocessing import cpu_count
 
-from rawtools import convert, generate, log, nsihdr, qualitycontrol, raw2img
+from rawtools import convert, generate, log, qualitycontrol, raw2img
 
 __version__ = version('rawtools')
 
 def main():
     """Console script for rawtools."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('_', nargs='*')
-    args = parser.parse_args()
-
-    print("Arguments: " + str(args._))
-    print("Replace this message by putting your code into "
-          "rawtools.cli.main")
     return 0
 
 def raw_convert():
@@ -88,6 +81,7 @@ def raw_nsihdr():
         nsihdr.App(args)
     # Otherwise, assume CLI use
     else:
+        from rawtools import nsihdr
         nsihdr.main(args)
 
 def raw_qc():
