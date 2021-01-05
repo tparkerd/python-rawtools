@@ -20,7 +20,6 @@ History
 
 * Fixed font file missing when installing via pip
 
-
 0.1.2 (2020-09-25)
 ------------------
 
