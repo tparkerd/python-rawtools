@@ -22,7 +22,12 @@ def configure(args):
 	# Set project-level logging
 	if args.module_name is not None:
 		logfile_basename = f"{dt.today().strftime('%Y-%m-%d_%H-%M-%S')}_{args.module_name}.log"
-	lfp = os.path.join(os.path.realpath(os.path.dirname(args.path[0])), logfile_basename) # base log file path
+	rpath = os.path.realpath(args.path[0])
+	if os.path.isdir(rpath):
+		dname = rpath
+	else:
+		dname = os.path.dirname(rpath)
+	lfp = os.path.join(dname, logfile_basename) # base log file path
 	fileHandler = logging.FileHandler(lfp)
 	fileHandler.setFormatter(logFormatter)
 	fileHandler.setLevel(logging.DEBUG) # always show debug statements in log file

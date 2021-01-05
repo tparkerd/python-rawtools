@@ -19,7 +19,6 @@ def bitdepth(name):
 
     """
     name = str(name)
-    logging.warning(name)
     supported_types = {
         'uint8': 'UCHAR',
         'uint16': 'USHORT',
