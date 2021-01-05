@@ -2,6 +2,25 @@
 History
 =======
 
+0.2.0 (2021-01-04)
+------------------
+
+* Added efX-SDK library
+* Added module to export/convert `nsihdr` files to uint `raw` files using the efX-SDK (Windows only)
+* Tentatively implemented a GUI for the nsihdr2raw export tool
+* Tweaked logging path for log files generated relative to input data for `nsihdr2raw`
+
+0.1.4 (2020-10-27)
+------------------
+
+* Code clean up, remove unnecessary transposing of data, improved debug statements and logging
+
+0.1.3 (2020-10-26)
+------------------
+
+* Fixed font file missing when installing via pip
+
+
 0.1.2 (2020-09-25)
 ------------------
 
@@ -10,4 +29,4 @@ History
 0.1.0 (2020-06-19)
 ------------------
 
-* First release on PyPI.
+* Initial version
