@@ -6,6 +6,7 @@ include README.rst
 include rawtools/assets/OpenSans-Regular.ttf
 
 recursive-include tests *
+recursive-include rawtools/lib *
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 
