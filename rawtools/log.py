@@ -23,14 +23,11 @@ def configure(args):
 	if args.module_name is not None:
 		logfile_basename = f"{dt.today().strftime('%Y-%m-%d_%H-%M-%S')}_{args.module_name}.log"
 	rpath = os.path.realpath(args.path[0])
-	logging.debug(f"{rpath=}")
 	if os.path.isdir(rpath):
 		dname = rpath
 	else:
 		dname = os.path.dirname(rpath)
-	logging.debug(f"{dname=}")
 	lfp = os.path.join(dname, logfile_basename) # base log file path
-	logging.debug(f"{lfp=}")
 	fileHandler = logging.FileHandler(lfp)
 	fileHandler.setFormatter(logFormatter)
 	fileHandler.setLevel(logging.DEBUG) # always show debug statements in log file

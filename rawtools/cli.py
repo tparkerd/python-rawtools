@@ -66,7 +66,7 @@ def raw_nsihdr():
 
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Increase output verbosity")
     parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
     parser.add_argument("--gui", action="store_true", default=False, help="(Experimental) Enable GUI")
     parser.add_argument('path', metavar='PATH', type=str, nargs="+", help='List of .nsihdr files')
