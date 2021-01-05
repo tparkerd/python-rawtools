@@ -3,17 +3,20 @@
 """NSIHDR to RAW Batch Converter"""
 import logging
 import os
-import re
 import sys
+import tkinter as tk
 from multiprocessing import Pool, cpu_count
 from pprint import pformat
 from time import time
-
+from tkinter import (E, N, S, StringVar, Toplevel, W, filedialog, messagebox,
+                     ttk)
+import threading
 import numpy as np
 from tqdm import tqdm
 
 from rawtools import dat
 from rawtools.convert import scale
+from rawtools.gui import nsihdr
 
 # Load in NSI SDK
 currentdir = os.path.dirname(os.path.realpath(__file__))
@@ -21,6 +24,34 @@ rootdir = os.path.dirname(os.path.dirname(currentdir))
 includesdir = os.path.join(rootdir, "bin")
 sys.path.append(includesdir)
 from rawtools import nsiefx
+
+# def check_progress(amount):
+# 	logging.info(amount)
+# 	# progress_text.set(str(round(total_slices_processed / args.total_slice_count * 100.0, 1)))
+# 	progress_text.set(str(total_slices_processed))
+# 	progress['value'] = total_slices_processed
+# 	logging.info(f"{progress_text.get()=}")
+
+
+def update_progress(increment):
+	logging.debug(f"{increment=}")
+
+def start_progress_thread(event, pbar, root):
+	global progress_thread
+	progress_thread = threading.Thread(target=update_progress, args=(1,))
+	progress_thread.daemon = True
+	# pbar.start()
+	progress_thread.start()
+	root.after(20, check_progress_thread(pbar, root))
+
+def check_progress_thread(pbar, root):
+	if progress_thread.is_alive():
+		logging.info("Pbar is alive")
+		root.after(20, check_progress_thread)
+	else:
+		logging.info("Pbar is done")
+		pbar.stop()
+
 
 def process(args, fp, export_path):
 	"""Converts NSIHDR files to a single .RAW + .DAT
@@ -32,6 +63,9 @@ def process(args, fp, export_path):
 		export_path (str): filepath to output .RAW file
 	"""
 	logging.debug(f'{fp=}')
+	total_slices_processed = 0
+	progress = None
+	check_progress = None
 
 	with nsiefx.open(fp) as volume:
 		v = volume # for shorthand laziness
@@ -52,7 +86,6 @@ def process(args, fp, export_path):
 		bname = os.path.basename(os.path.splitext(fp)[0])
 		dat_path = os.path.join(dname, f'{bname}.dat')
 
-
 		if os.path.exists(export_path) and args.force == True:
 			os.remove(export_path)
 			logging.warning(f"Removed old '{export_path}'")
@@ -63,6 +96,7 @@ def process(args, fp, export_path):
 		dat.write(dat_path, dimensions = (width, height, depth), thickness = voxel_size)
 		logging.debug(f"Generated '{dat_path}'")
 
+		pbar = None
 		with open(export_path, 'ab') as raw_ofp:
 			if not args.verbose:
 				pbar = tqdm(total= depth, desc=f"Exporting {bname}")
@@ -72,8 +106,11 @@ def process(args, fp, export_path):
 				cross_section = scale(cross_section, data_min, data_max, 0, 65535).astype(np.uint16)
 				cross_section.tofile(raw_ofp)
 
+				total_slices_processed += 1
+
 				if not args.verbose:
 					pbar.update()
+				# logging.debug(f"Processed {total_slices_processed}")
 			if not args.verbose:
 				pbar.close()
 
@@ -141,9 +178,54 @@ def main(args):
 		logging.error(err)
 		raise err
 	else:
+
+		# GUI Implementation
+		if args.gui:
+			# Determine the number of slices in advance
+			args.total_slice_count = 0
+			for fp in args.files:
+				with nsiefx.open(fp) as volume:
+					args.total_slice_count += volume.num_slices()
+			
+			# Initialize progress bar
+			progress_bar_prompt_title = "Placeholder Progress Bar"
+			app = args.app
+			root = app.root
+			icon_fp = app.icon_fp
+			progress_bar_prompt = Toplevel(root)
+			progress_bar_prompt.title(progress_bar_prompt_title)
+			progress_bar_prompt.iconbitmap(icon_fp)
+			progress_bar_prompt.resizable(False, False)
+			progress_bar_prompt_frame = ttk.Frame(progress_bar_prompt, padding="16 16")
+			progress_bar_prompt_frame.grid(column=0, row=0, sticky=(N, S, E, W))
+
+			progress = ttk.Progressbar(progress_bar_prompt_frame, orient='horizontal', mode='indeterminate', length=200, max=args.total_slice_count)
+			progress.grid(row=0, column=0, columnspan=2, pady="0 16", sticky=(E,W))
+			progress_text = tk.StringVar()
+			progress_text_label = ttk.Label(progress_bar_prompt_frame, textvariable=progress_text, width=7)
+			progress_text_label.grid(row=0, column=3, columnspan=1, pady="0 16", sticky=E, padx="8 0")
+			progress_text.set('0%')
+
+			def dismiss_progress_prompt():
+				progress_bar_prompt.grab_release()
+				progress_bar_prompt.destroy()
+
+			# Orient window on screen
+			nsihdr.center(root, progress_bar_prompt)
+			# Disable interaction with parent window
+			progress_bar_prompt.protocol("WM_DELETE_WINDOW", dismiss_progress_prompt)
+			progress_bar_prompt.transient(root)
+			progress_bar_prompt.wait_visibility()
+			progress_bar_prompt.grab_set()
+			progress_bar_prompt.wait_window()
+			start_progress_thread(None, progress, root)
+			
+		# CLI Implementation
 		# For each provided volume...
+		pbar = None
 		if not args.verbose:
 			pbar = tqdm(total = len(args.files), desc=f"Overall progress")
+
 		for fp in args.files:
 			logging.debug(f"Processing '{fp}'")
 			dname = os.path.dirname(fp)

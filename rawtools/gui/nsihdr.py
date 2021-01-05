@@ -13,11 +13,6 @@ from ttkthemes import ThemedTk
 
 __version__ = version('rawtools')
 
-class GuiState(Enum):
-	IDLE = 1
-	PROCESSING = 2
-	ERROR = 3
-
 def center(root, toplevel):
 	toplevel.update_idletasks()
 
@@ -37,13 +32,12 @@ def center(root, toplevel):
 
 class App():
 	def __init__(self, args):
-		self.source = 'C:/Users/Tim Parker/Datasets/topp/xrt/development/batch-export'
+		self.source = 'C:/Users/Tim Parker/Datasets/topp/xrt/development/batch2'
 		self.args = args
 		# Source: https://www.elegantthemes.com/blog/freebie-of-the-week/beautiful-flat-icons-for-free
 		self.icon_fp = "rawtools\\assets\\tools.ico"
 		self.icon_caution_fp = "rawtools\\assets\\caution.ico"
-		self.state = GuiState.IDLE
-
+		self.state = 'idle'
 
 		self.root = ThemedTk(theme='arc')
 		root = self.root
@@ -209,11 +203,11 @@ class App():
 			self.prompt.title(prompt_title)
 			self.prompt.iconbitmap(self.icon_fp)
 			self.prompt.resizable(False, False)
-			self.prompt_frame = ttk.Frame(self.prompt, padding="16 16")
-			self.prompt_frame.grid(column=0, row=0, sticky=(N, S, E, W))
-			self.prompt_message = ttk.Label(self.prompt_frame, text=prompt_message).grid(row = 0, column = 0, columnspan=4, pady="0 32")
-			self.prompt_button = ttk.Button(self.prompt_frame, text="Ok", command=self.dismiss).grid(row = 1, column = 1, columnspan=1)
-			self.prompt_button = ttk.Button(self.prompt_frame, text="Cancel", command=self.cancel_export).grid(row = 1, column = 2, columnspan=1)
+			prompt_frame = ttk.Frame(self.prompt, padding="16 16")
+			prompt_frame.grid(column=0, row=0, sticky=(N, S, E, W))
+			self.prompt_message = ttk.Label(prompt_frame, text=prompt_message).grid(row = 0, column = 0, columnspan=4, pady="0 32")
+			self.prompt_button = ttk.Button(prompt_frame, text="Ok", command=self.dismiss).grid(row = 1, column = 1, columnspan=1)
+			self.prompt_button = ttk.Button(prompt_frame, text="Cancel", command=self.cancel_export).grid(row = 1, column = 2, columnspan=1)
 
 			# Orient window on screen
 			center(self.root, self.prompt)
@@ -224,11 +218,14 @@ class App():
 			self.prompt.grab_set()
 			self.prompt.wait_window()
 
+			self.prompt_frame.grid_forget()
+			self.prompt = None
+
 		# Process data
 		if not self.cancelled:
 			# Do processing
 			logging.debug(self.args)
-			self.args.gui_window = self.root
+			self.args.app = self
 			nsihdr.main(self.args)
 		else:
 			logging.debug(f"Cancelled export")
@@ -254,3 +251,8 @@ class App():
 	def dismiss(self):
 		self.prompt.grab_release()
 		self.prompt.destroy()
+
+	def dismiss_progress_prompt(self):
+		self.progress_bar_prompt.grab_release()
+		self.progress_bar_prompt.destroy()
+
