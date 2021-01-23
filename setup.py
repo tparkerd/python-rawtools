@@ -50,6 +50,7 @@ setup(
             'raw-generate=rawtools.cli:raw_generate',
             'nsihdr2raw=rawtools.cli:raw_nsihdr',
             'raw2img=rawtools.cli:raw_image',
+            'img2raw=rawtools.cli:image_raw',
             'raw-qc=rawtools.cli:raw_qc'
         ],
     },

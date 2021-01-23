@@ -4,7 +4,7 @@ import sys
 from importlib.metadata import version
 from multiprocessing import cpu_count
 
-from rawtools import convert, generate, log, qualitycontrol, raw2img
+from rawtools import convert, generate, nsihdr, qualitycontrol, log, raw2img, img2raw
 
 __version__ = version('rawtools')
 
@@ -130,6 +130,24 @@ def raw_image():
     log.configure(args)
 
     raw2img.main(args)
+
+
+def image_raw():
+    description='Convert .png slices into raw format'
+    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
+    parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Dry run, disable writes to disk.")
+    parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
+    args = parser.parse_args()
+
+    args.path = list(set(args.path)) # remove any duplicates
+
+    args.module_name = 'img2raw'
+    log.configure(args)
+
+    img2raw.main(args)
 
 if __name__ == "__main__":
     sys.exit(main())  # pragma: no cover
