@@ -3,14 +3,16 @@
 """NSIHDR to RAW Batch Converter"""
 import logging
 import os
+import platform
 import sys
+import threading
 import tkinter as tk
 from multiprocessing import Pool, cpu_count
 from pprint import pformat
 from time import time
 from tkinter import (E, N, S, StringVar, Toplevel, W, filedialog, messagebox,
                      ttk)
-import threading
+
 import numpy as np
 from tqdm import tqdm
 
@@ -23,6 +25,8 @@ currentdir = os.path.dirname(os.path.realpath(__file__))
 rootdir = os.path.dirname(os.path.dirname(currentdir))
 includesdir = os.path.join(rootdir, "bin")
 sys.path.append(includesdir)
+current_os = platform.system()
+print(f"{current_os=}")
 from rawtools import nsiefx
 
 # def check_progress(amount):
