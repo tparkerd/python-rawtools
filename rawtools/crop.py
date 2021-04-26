@@ -7,6 +7,8 @@ import re
 import sys
 import threading
 from multiprocessing import Pool, cpu_count
+from multiprocessing.pool import ThreadPool
+
 from time import time
 
 import numpy as np
@@ -28,6 +30,8 @@ def process(fp, *args, **kwargs):
         export_path (str): filepath to output .RAW file
     """
     global gargs
+
+    lock = kwargs["lock"]
 
     logging.debug(f"{fp=}")
     logging.debug(f"{args=}")
@@ -99,7 +103,8 @@ def process(fp, *args, **kwargs):
         if "pbar_position" in kwargs:
             pbar_position = kwargs["pbar_position"]
             logging.debug(f"'{pbar_position=}'")
-        pbar = tqdm(total=total_slices, desc=description, position=pbar_position, leave=True)
+        with lock:
+            pbar = tqdm(total=total_slices, desc=description, position=pbar_position, leave=True)
         # For each subset, export the slice if within bounds
         for key in subset_volumes.keys():
             subset_volumes[key]["ofp"] = open(subset_volumes[key]["ofpath"], "wb")
@@ -119,11 +124,12 @@ def process(fp, *args, **kwargs):
                         f"Write '{i}' data to '{subset_volumes[key]['ofpath']}'"
                     )
                     chunk.tofile(subset_volumes[key]["ofp"]) # comment to speed up
-                    pbar.update(1)
-
-        if pbar is not None:
-            pbar.close()
-            pbar = None
+                    with lock:
+                        pbar.update(1)
+        with lock:
+            if pbar is not None:
+                pbar.close()
+                pbar = None
 
         # Finished processing data, close up output files
         for key in subset_volumes.keys():
@@ -196,7 +202,8 @@ def crop_by_node(args):
         # Process each volume
         logging.debug(scans)
 
-        with Pool(gargs.threads) as p:
+        with ThreadPool(gargs.threads) as p:
+            lock = threading.Lock()
             next_available_slot = 0
             for uid in scans.keys():
                 scan = scans[uid]
@@ -206,7 +213,7 @@ def crop_by_node(args):
                 fp = scan["fp"]
                 nodes = scan["nodes"]
                 end = scan["end"]
-                p.apply_async(process, (fp,), dict(**nodes, end=end, pbar_position=next_available_slot))
+                p.apply_async(process, (fp,), dict(**nodes, end=end, pbar_position=next_available_slot, lock=lock))
                 next_available_slot += 1
             p.close()
             p.join()
