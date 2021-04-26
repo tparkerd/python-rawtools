@@ -73,6 +73,7 @@ def process(fp, *args, **kwargs):
         start = kwargs[co]
         subset_volumes[co]["start"] = start
         subset_volumes[co]["end"] = end
+        slices_in_subset_volume = end - start + 1
         # File paths
         cropped_ofpath = f"{prefix}_{co}{ext}"
         cropped_ofpath = os.path.join(gargs.outdir, cropped_ofpath)
@@ -85,10 +86,10 @@ def process(fp, *args, **kwargs):
         logging.debug(f"{cropped_ofpath=}")
 
         # Write DAT file
-        dat.write(cropped_dat_ofpath, (x, y, end - start), (xth, yth, zth))
+        dat.write(cropped_dat_ofpath, (x, y, slices_in_subset_volume), (xth, yth, zth))
 
         # Keep track of the total iterations needed to process the volume
-        total_slices += (end - start + 1)
+        total_slices += (slices_in_subset_volume)
 
     # Open file handlers
     logging.debug(f"Opening input data: '{fp}'")
@@ -98,7 +99,7 @@ def process(fp, *args, **kwargs):
         if "pbar_position" in kwargs:
             pbar_position = kwargs["pbar_position"]
             logging.debug(f"'{pbar_position=}'")
-        pbar = tqdm(total=total_slices, desc=description, position=pbar_position)
+        pbar = tqdm(total=total_slices, desc=description, position=pbar_position, leave=True)
         # For each subset, export the slice if within bounds
         for key in subset_volumes.keys():
             subset_volumes[key]["ofp"] = open(subset_volumes[key]["ofpath"], "wb")
@@ -109,8 +110,8 @@ def process(fp, *args, **kwargs):
         )
         logging.debug(f"{earliest_included_slice=}")
         logging.debug(f"Loading slices [{earliest_included_slice}, {end}]")
-        for i in range(earliest_included_slice, end + 1): # range cuts off 1 less than end
-            ifp.seek(i * offset)
+        for i in range(earliest_included_slice, end + 1):
+            ifp.seek((i-1) * offset) # data is 0-indexed, dimensions are 1-indexed
             chunk = np.fromfile(ifp, dtype=bitdepth, count=img_size, sep="")
             for key in subset_volumes.keys():
                 if subset_volumes[key]["start"] <= i <= subset_volumes[key]["end"]:
@@ -194,15 +195,21 @@ def crop_by_node(args):
 
         # Process each volume
         logging.debug(scans)
-        for uid in scans.keys():
-            scan = scans[uid]
-            if "fp" not in scan:
-                logging.warning(f"No input file found for '{uid}'")
-                continue
-            fp = scan["fp"]
-            nodes = scan["nodes"]
-            end = scan["end"]
-            process(fp, **nodes, end=end)
+
+        with Pool(gargs.threads) as p:
+            next_available_slot = 0
+            for uid in scans.keys():
+                scan = scans[uid]
+                if "fp" not in scan:
+                    logging.debug(f"No input file found for '{uid}'")
+                    continue
+                fp = scan["fp"]
+                nodes = scan["nodes"]
+                end = scan["end"]
+                p.apply_async(process, (fp,), dict(**nodes, end=end, pbar_position=next_available_slot))
+                next_available_slot += 1
+            p.close()
+            p.join()
 
     except Exception as err:
         logging.error(err)
