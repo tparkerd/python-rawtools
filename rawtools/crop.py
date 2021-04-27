@@ -110,9 +110,9 @@ def process(fp, *args, **kwargs):
             subset_volumes[key]["ofp"] = open(subset_volumes[key]["ofpath"], "wb")
 
         # Extract data slice-by-slice
-        earliest_included_slice = min(
+        earliest_included_slice = max(min(
             [subset_volumes[key]["start"] for key in subset_volumes.keys()]
-        )
+        ),1)
         logging.debug(f"{earliest_included_slice=}")
         logging.debug(f"Loading slices [{earliest_included_slice}, {end}]")
         for i in range(earliest_included_slice, end + 1):
