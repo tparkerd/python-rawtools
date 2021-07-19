@@ -13,7 +13,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy==1.19.3', 'tqdm', 'Pillow', 'ttkthemes' ]
+requirements = ['numpy==1.19.3', 'tqdm', 'Pillow', 'ttkthemes']
 
 setup_requirements = ['pytest-runner', ]
 
@@ -34,7 +34,7 @@ if system == 'Darwin':
 
 setup(
     author="Tim Parker",
-    author_email='tim.parkerd@gmail.com',
+    author_email='tparker@danforthcenter.com',
     python_requires='>=3.8',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -56,7 +56,7 @@ setup(
     install_requires=requirements,
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    package_data = {
+    package_data={
         "efxsdk": [efxsdk]
     },
     keywords='rawtools',
