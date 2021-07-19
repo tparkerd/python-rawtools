@@ -2,6 +2,23 @@
 History
 =======
 
+0.3.0 (2021-07-18)
+------------------
+
+Added
+*****
+
+* License
+* Basic tests on core functionality for scaling data
+
+Changed
+*******
+
+* Updated URL for any references to GitHub repo
+* Updated docstring header for `raw2img` module
+* Updated README to be more descriptive
+
+
 0.2.0 (2021-01-04)
 ------------------
 
