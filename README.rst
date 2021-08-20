@@ -28,7 +28,7 @@ Related Projects
 
 * `xrcap <https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline>`_\ : root crown image analysis pipeline
 * `DynamicRoots <https://github.com/Topp-Roots-Lab/DynamicRoots>`_\ : tool for reconstructing and analyzing the growth of a plant root system
-* TopoRoot (\ *tentative name*\ )
+* `TopoRoot <https://github.com/danzeng8/TopoRoot>`_\ : high-throughput computational method that computes fine-grained architectural traits from 3D CT images of excavated maize root crowns
 * `rootseg <https://github.com/Topp-Roots-Lab/rootseg>`_\ : ML-based segmentation for soil rich samples
 * `xrt-dmt <https://github.com/Topp-Roots-Lab/xrt-dmt>`_\ : data management tool for tracking and archiving XRT (meta)data
 
