@@ -2,7 +2,6 @@
 
 """The setup script."""
 
-import distutils
 import platform
 
 from setuptools import find_packages, setup
@@ -13,7 +12,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy==1.19.3', 'tqdm', 'Pillow', 'ttkthemes']
+with open("requirements.txt") as requirements_file:
+    requirements = requirements_file.readlines()
 
 setup_requirements = ['pytest-runner', ]
 
@@ -35,13 +35,13 @@ if system == 'Darwin':
 setup(
     author="Tim Parker",
     author_email='tparker@danforthcenter.com',
-    python_requires='>=3.8',
+    python_requires='>=3.10',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.10',
     ],
     description="Utility library for consuming and manipulating x-ray data in RAW format",
     entry_points={
