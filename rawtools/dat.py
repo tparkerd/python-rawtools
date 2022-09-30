@@ -45,7 +45,7 @@ def determine_bit_depth(fp, dims):
     """
     file_size = os.stat(fp).st_size
     minimum_size = reduce(lambda x,y: x * y, dims) # get product of dimensions
-    logging.info(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
+    logging.debug(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
     expected_filesize = minimum_size * 2
     if file_size == minimum_size:
         return 'uint8'
@@ -63,13 +63,13 @@ def determine_bit_depth(fp, dims):
 
 def __parse_object_filename(line, dat_format):
     if (dat_format == "Dragonfly"):
-        pattern = r"<ObjectFileName>(?P<filename>.*\.raw)<\/ObjectFileName>"
+        pattern = r"\s+<ObjectFileName>(?P<filename>.*\.raw)<\/ObjectFileName>$"
     elif (dat_format == "NSI"):
         pattern = r"^ObjectFileName\:\s+(?P<filename>.*\.raw)$"
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return match.group('filename')
 
 def __parse_resolution(line, dat_format):
@@ -84,7 +84,7 @@ def __parse_resolution(line, dat_format):
     """
     # logging.debug(line.strip())
     if (dat_format == "Dragonfly"):
-        pattern = r'<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
+        pattern = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
     elif (dat_format == "NSI"):
         pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
         pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
@@ -92,7 +92,7 @@ def __parse_resolution(line, dat_format):
     # See if the DAT file is the newer version
     match = re.match(pattern, line, flags=re.IGNORECASE)
     # Otherwise, check the old version (XML)
-    if match is None and dat_format == "NSI":
+    if match is None:
         match = re.match(pattern_old, line, flags=re.IGNORECASE)
         if match is not None:
             logging.debug(f"XML format detected for '{line}'")
@@ -120,13 +120,13 @@ def __parse_slice_thickness(line, dat_format):
 
     """
     if (dat_format == "Dragonfly"):
-        pattern = r"<Spacing\s+X=\"(?P<xth>\d+\.\d+)\"\s+Y=\"(?P<yth>\d+\.\d+)\"\s+Z=\"(?P<zth>\d+\.\d+)\""
+        pattern = r"\s+<Spacing\s+X=\"(?P<xth>\d+\.\d+)\"\s+Y=\"(?P<yth>\d+\.\d+)\"\s+Z=\"(?P<zth>\d+\.\d+)\""
     elif (dat_format == "NSI"):
         pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
         if (dat_format == "Dragonfly"):
             # Change Dragonfly thickness units to match NSI format
@@ -139,31 +139,31 @@ def __parse_slice_thickness(line, dat_format):
 
 def __parse_format(line, dat_format):
     if (dat_format == "Dragonfly"): 
-        pattern = r"<Format>(?P<format>\w+)<\/Format>"
+        pattern = r"\s+<Format>(?P<format>\w+)<\/Format>$"
     elif (dat_format == "NSI"):
-        pattern = r"Format\:\s+(?P<format>\w+)$"
+        pattern = r"^Format\:\s+(?P<format>\w+)$"
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return match.group('format')
 
 def __parse_object_model(line, dat_format):
     if (dat_format == "Dragonfly"): 
-        pattern = r"<Unit>(?P<object_model>\w+)<\/Unit>"  
+        pattern = r"\s+<Unit>(?P<object_model>\w+)<\/Unit>$"  
     elif (dat_format == "NSI"):
         pattern = r"^ObjectModel\:\s+(?P<object_model>\w+)$"
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return match.group('object_model')
 
 def __is_dragonfly_dat_format(line):
-    pattern = r"<\?xml\sversion=\"1\.0\"\?>"
+    pattern = r"^<\?xml\sversion=\"1\.0\"\?>$"
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return True
 
     
@@ -188,7 +188,6 @@ def read(fp):
 
             if (object_filename := __parse_object_filename(line, dat_format)) is not None:
                 data['ObjectFileName'] = object_filename
-               
 
             if (resolution := __parse_resolution(line, dat_format)) is not None:
                 data['xdim'], data['ydim'], data['zdim'] = resolution
