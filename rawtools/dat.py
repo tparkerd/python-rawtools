@@ -69,7 +69,7 @@ def __parse_object_filename(line, dat_format):
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return match.group('filename')
 
 def __parse_resolution(line, dat_format):
@@ -126,7 +126,7 @@ def __parse_slice_thickness(line, dat_format):
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
         if (dat_format == "Dragonfly"):
             # Change Dragonfly thickness units to match NSI format
@@ -145,7 +145,7 @@ def __parse_format(line, dat_format):
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return match.group('format')
 
 def __parse_object_model(line, dat_format):
@@ -156,14 +156,14 @@ def __parse_object_model(line, dat_format):
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return match.group('object_model')
 
 def __is_dragonfly_dat_format(line):
     pattern = r"<\?xml\sversion=\"1\.0\"\?>"
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
-        logging.info(f"Match: {match}")
+        logging.debug(f"Match: {match}")
         return True
 
     
