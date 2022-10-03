@@ -76,6 +76,8 @@ def test_scale_uint16_to_uint8_large_variance(slice_uint16_high_variance):
     np.testing.assert_array_equal(scaled_slice, slice_uint8)
 
 def test_dat_read_both_formats(dat_files):
+    """Test dat.read() on 4 example .dat (two acceptable and two unacceptable) 
+    covering both Dragonfly and NSI formats"""
     from rawtools.dat import read
     # neither of these should raise any errors
     read(dat_files[0])
