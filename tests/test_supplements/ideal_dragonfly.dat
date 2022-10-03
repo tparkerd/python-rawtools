@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<RAWFileData>
+        <Version>1</Version>
+        <ObjectFileName>2020_PlantHaven_IPSRI_133-3_2021-rewash_109um_8Bit.raw</ObjectFileName>
+        <Format>UCHAR</Format>
+        <DataSlope>1</DataSlope>
+        <DataOffset>0</DataOffset>
+        <Unit>Density</Unit>
+        <Resolution X="1474" Y="1474" Z="1861" T="1" />
+        <Spacing X="0.00010852599999999999736115946502579276966571342200040817" Y="0.00010852599999999999736115946502579276966571342200040817" Z="0.00010852599999999999736115946502579276966571342200040817" />
+        <Orientation X0="1" X1="0" X2="0" Y0="0" Y1="1" Y2="0" Z0="0" Z1="0" Z2="1" />
+        <Position P1="0" P2="0" P3="0" />
+</RAWFileData>
