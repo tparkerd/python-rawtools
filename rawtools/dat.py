@@ -45,7 +45,7 @@ def determine_bit_depth(fp, dims):
     """
     file_size = os.stat(fp).st_size
     minimum_size = reduce(lambda x,y: x * y, dims) # get product of dimensions
-    logging.info(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
+    logging.debug(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
     expected_filesize = minimum_size * 2
     if file_size == minimum_size:
         return 'uint8'
