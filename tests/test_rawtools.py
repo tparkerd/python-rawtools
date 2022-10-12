@@ -27,6 +27,15 @@ def slice_uint16_high_variance():
     """Sample uint16 slice with variable values"""
     return np.array([-1, 0, 100, 1000, 5000, 14830, 50321, 65535, 65536], dtype=uint16)
 
+@pytest.fixture
+def dat_files():
+    """Sample .dat files' paths"""
+    return ['tests/test_supplements/ideal_dragonfly.dat', 
+            'tests/test_supplements/ideal_nsi.dat',
+            'tests/test_supplements/poor_dragonfly.dat',
+            'tests/test_supplements/poor_nsi.dat']
+
+
 
 def test_scale_uint8(slice_uint8):
     """Test scaling a unsigned 8-bit integer array to own bounds."""
@@ -65,3 +74,16 @@ def test_scale_uint16_to_uint8_large_variance(slice_uint16_high_variance):
         scale(slice_uint16_high_variance, lbound, ubound, new_lbound, new_ubound))
 
     np.testing.assert_array_equal(scaled_slice, slice_uint8)
+
+def test_dat_read_both_formats(dat_files):
+    """Test dat.read() on 4 example .dat (two acceptable and two unacceptable) 
+    covering both Dragonfly and NSI formats"""
+    from rawtools.dat import read
+    # neither of these should raise any errors
+    read(dat_files[0])
+    read(dat_files[1])
+    with pytest.raises(ValueError, match=r"Unable to parse"):
+        read(dat_files[2])
+    with pytest.raises(ValueError, match=r"Unable to parse"):
+        read(dat_files[3])
+    

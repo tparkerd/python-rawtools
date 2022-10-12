@@ -61,15 +61,18 @@ def determine_bit_depth(fp, dims):
             logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{expected_filesize}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
             return 'uint16'
 
-def __parse_object_filename(line):
-    pattern = r"^ObjectFileName\:\s+(?P<filename>.*\.raw)$"
+def __parse_object_filename(line, dat_format):
+    if (dat_format == "Dragonfly"):
+        pattern = r"<ObjectFileName>(?P<filename>.*\.raw)<\/ObjectFileName>"
+    elif (dat_format == "NSI"):
+        pattern = r"^ObjectFileName\:\s+(?P<filename>.*\.raw)$"
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
         logging.debug(f"Match: {match}")
         return match.group('filename')
 
-def __parse_resolution(line):
+def __parse_resolution(line, dat_format):
     """Get the x, y, z dimensions of a volume.
 
     Args:
@@ -80,13 +83,16 @@ def __parse_resolution(line):
 
     """
     # logging.debug(line.strip())
-    pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
-    pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
+    if (dat_format == "Dragonfly"):
+        pattern = r'<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
+    elif (dat_format == "NSI"):
+        pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
+        pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
 
     # See if the DAT file is the newer version
     match = re.match(pattern, line, flags=re.IGNORECASE)
     # Otherwise, check the old version (XML)
-    if match is None:
+    if match is None and dat_format == "NSI":
         match = re.match(pattern_old, line, flags=re.IGNORECASE)
         if match is not None:
             logging.debug(f"XML format detected for '{line}'")
@@ -103,7 +109,7 @@ def __parse_resolution(line):
             raise Exception(f"Unable to extract dimensions from DAT file. Found dimensions: '{dims}'.")
         return dims
 
-def __parse_slice_thickness(line):
+def __parse_slice_thickness(line, dat_format):
     """Get the x, y, z dimensions of a volume.
 
     Args:
@@ -113,30 +119,55 @@ def __parse_slice_thickness(line):
         (float, float, float): x, y, z real-world thickness in mm. Otherwise, returns None.
 
     """
-    pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
+    if (dat_format == "Dragonfly"):
+        pattern = r"<Spacing\s+X=\"(?P<xth>\d+\.\d+)\"\s+Y=\"(?P<yth>\d+\.\d+)\"\s+Z=\"(?P<zth>\d+\.\d+)\""
+    elif (dat_format == "NSI"):
+        pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
+
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
         logging.debug(f"Match: {match}")
-        df = match.groupdict()
         dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
-        dims = [ float(s) for s in dims ]
+        if (dat_format == "Dragonfly"):
+            # Change Dragonfly thickness units to match NSI format
+            dims = [ (float(s)*1000) for s in dims ]
+        elif (dat_format == "NSI"):
+            dims = [ float(s) for s in dims ]
         if not dims or len(dims) != 3:
             raise Exception(f"Unable to extract slice thickness from DAT file: '{line}'. Found slice thickness: '{dims}'.")
         return dims
 
-def __parse_format(line):
-    pattern = r"^Format\:\s+(?P<format>\w+)$"
+def __parse_format(line, dat_format):
+    if (dat_format == "Dragonfly"): 
+        pattern = r"<Format>(?P<format>\w+)<\/Format>"
+    elif (dat_format == "NSI"):
+        pattern = r"Format\:\s+(?P<format>\w+)$"
+
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
         logging.debug(f"Match: {match}")
         return match.group('format')
 
-def __parse_object_model(line):
-    pattern = r"^ObjectModel\:\s+(?P<object_model>\w+)$"
+def __parse_object_model(line, dat_format):
+    if (dat_format == "Dragonfly"): 
+        pattern = r"<Unit>(?P<object_model>\w+)<\/Unit>"  
+    elif (dat_format == "NSI"):
+        pattern = r"^ObjectModel\:\s+(?P<object_model>\w+)$"
+
     match = re.match(pattern, line, flags=re.IGNORECASE)
     if match is not None:
         logging.debug(f"Match: {match}")
         return match.group('object_model')
+
+def __is_dragonfly_dat_format(line):
+    pattern = r"<\?xml\sversion=\"1\.0\"\?>"
+    match = re.match(pattern, line, flags=re.IGNORECASE)
+    if match is not None:
+        logging.debug(f"Match: {match}")
+        return True
+
+    
+
 
 def read(fp):
     """Read a .DAT file
@@ -146,24 +177,30 @@ def read(fp):
     dict: contents of .DAT file
     """
     data = {}
+    dat_format = "NSI"
     with open(fp, 'r') as ifp:
         # Parse the individual lines
         for line in ifp.readlines():
             line = line.strip()
-            if (object_filename := __parse_object_filename(line)) is not None:
-                data['ObjectFileName'] = object_filename
+            # Determine if format is NSI .dat or Dragonfly .dat
+            if (__is_dragonfly_dat_format(line)): 
+                dat_format = "Dragonfly"
 
-            if (resolution := __parse_resolution(line)) is not None:
+            if (object_filename := __parse_object_filename(line, dat_format)) is not None:
+                data['ObjectFileName'] = object_filename
+               
+
+            if (resolution := __parse_resolution(line, dat_format)) is not None:
                 data['xdim'], data['ydim'], data['zdim'] = resolution
                 data['dimensions'] = resolution
 
-            if (thicknesses := __parse_slice_thickness(line)) is not None:
+            if (thicknesses := __parse_slice_thickness(line, dat_format)) is not None:
                 data['x_thickness'], data['y_thickness'], data['z_thickness'] = thicknesses
 
-            if (file_format := __parse_format(line)) is not None:
+            if (file_format := __parse_format(line, dat_format)) is not None:
                 data['Format'] =  file_format
 
-            if (object_model := __parse_object_model(line)) is not None:
+            if (object_model := __parse_object_model(line, dat_format)) is not None:
                 data['model'] = object_model
 
 
