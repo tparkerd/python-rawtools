@@ -2,3 +2,5 @@ numpy
 tqdm
 Pillow
 ttkthemes
+scikit-image
+rich
