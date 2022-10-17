@@ -3,6 +3,15 @@ History
 =======
 
 ------------------
+0.6.0 (2022-10-16)
+------------------
+
+Added
+^^^^^
+
+* Support for converting from `.png` slices to `.obj`, `.out`, and `.xyz` (Meshlab variant) as `img2pcd` module
+
+------------------
 0.5.0 (2022-10-12)
 ------------------
 
