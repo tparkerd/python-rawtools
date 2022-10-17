@@ -4,3 +4,5 @@ rich
 scikit-image
 tqdm
 ttkthemes
+rich
+imageio
