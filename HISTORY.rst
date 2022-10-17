@@ -3,6 +3,28 @@ History
 =======
 
 ------------------
+0.5.0 (2022-10-12)
+------------------
+
+Added
+^^^^^
+
+* Support for Dragonfly's `.dat` format when exporting a `.raw`
+* Unit tests for parsing Dragonfly's `.dat` file format
+
+
+------------------
+0.4.0 (2022-04-13)
+------------------
+
+Changed
+^^^^^^^
+
+* Updated build dependencies
+* Updated reference to TopoRoot
+
+
+------------------
 0.3.0 (2021-07-18)
 ------------------
 

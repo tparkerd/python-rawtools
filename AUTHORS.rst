@@ -5,9 +5,9 @@ Credits
 Development Lead
 ----------------
 
-* Tim Parker <tim.parkerd@gmail.com>
+* Tim Parker <<tim.parkerd@gmail.com>>
 
 Contributors
 ------------
 
-None yet. Why not be the first?
+* Kenan Oestreich <<koestreich@danforthcenter.org>>
