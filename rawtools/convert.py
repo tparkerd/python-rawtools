@@ -1,5 +1,6 @@
-# -*- coding: utf-8 -*-
 """Conversion module for RAW data"""
+from __future__ import annotations
+
 import logging
 import os
 from time import time
@@ -22,23 +23,23 @@ def main(args):
             for root, dirs, files in os.walk(p):
                 for filename in files:
                     args.files.append(os.path.join(root, filename))
-        
+
         # Append any loose, explicitly defined paths to .RAW files
-        args.files.extend([ f for f in args.path if f.endswith('.raw') ])
+        args.files.extend([f for f in args.path if f.endswith('.raw')])
 
         # Get all RAW files
-        args.files = [ f for f in args.files if f.endswith('.raw') ]
-        logging.debug(f"All files: {args.files}")
-        args.files = list(set(args.files)) # remove duplicates
+        args.files = [f for f in args.files if f.endswith('.raw')]
+        logging.debug(f'All files: {args.files}')
+        args.files = list(set(args.files))  # remove duplicates
 
         # Set the path listing to the checked files and reset temporarily list of files
         args.path = args.files
-        args.files = [] # accumulate metadata files
+        args.files = []  # accumulate metadata files
         for fp in args.path:
-            args.files.append((fp, f"{os.path.splitext(fp)[0]}.dat"))
+            args.files.append((fp, f'{os.path.splitext(fp)[0]}.dat'))
 
-        logging.info(f"Found {len(args.files)} volume(s).")
-        logging.debug(f"Files: {args.files}")
+        logging.info(f'Found {len(args.files)} volume(s).')
+        logging.debug(f'Files: {args.files}')
 
         # Validate that a DAT file exists for each volume
         for fp in args.files:
@@ -53,7 +54,7 @@ def main(args):
         logging.error(err)
     else:
         # For each provided directory...
-        pbar = tqdm(total = len(args.files), desc=f"Overall progress")
+        pbar = tqdm(total=len(args.files), desc='Overall progress')
         for volume_fp, dat_fp in args.files:
             logging.debug(f"Processing '{fp}'")
             # Convert volume(s)
@@ -62,7 +63,6 @@ def main(args):
         pbar.close()
 
     logging.debug(f'Total execution time: {time() - start_time} seconds')
-
 
 
 def scale(x, a, b, c, d):
@@ -76,24 +76,25 @@ def scale(x, a, b, c, d):
         a (numeric): minimum of input range
         b (numeric): maximum of input range
         c (numeric): minimum of output range
-        d (numeric): maximum of output range 
+        d (numeric): maximum of output range
 
     Returns:
-        numeric: The equivalent value of the input value within a new target range  
+        numeric: The equivalent value of the input value within a new target range
     """
     return (x - a) / (b - a) * (d - c) + c
 
-def find_float_range(fp, dtype = 'float32', buffer_size = None):
+
+def find_float_range(fp, dtype='float32', buffer_size=None):
     """Read .RAW volume and find the minimum and maximum values
 
     Args:
         fp (str): path to .RAW file
         dtype (str): .RAW datatype
         buffer_size (int): number of bytes to buffer the volume when reading
-    
+
     Returns:
         (float, float): minimum and maximum values in volume
-    
+
     """
     # Set default values that should realistically always be replaced
     maximum = np.finfo(np.dtype(dtype)).min
@@ -104,7 +105,10 @@ def find_float_range(fp, dtype = 'float32', buffer_size = None):
         buffer_size = os.path.getsize(fp) // 100
 
     with open(fp, 'rb', buffering=buffer_size) as ifp:
-        pbar = tqdm(total = os.path.getsize(fp), desc=f"Calculating range for '{os.path.basename(fp)}'")
+        pbar = tqdm(
+            total=os.path.getsize(fp),
+            desc=f"Calculating range for '{os.path.basename(fp)}'",
+        )
         buffer = ifp.read(buffer_size)
         pbar.update(buffer_size)
         while buffer:
@@ -116,8 +120,9 @@ def find_float_range(fp, dtype = 'float32', buffer_size = None):
             buffer = ifp.read(buffer_size)
             pbar.update(buffer_size)
         pbar.close()
-        logging.info(f"Range: [{minimum}, {maximum}]")
+        logging.info(f'Range: [{minimum}, {maximum}]')
         return (minimum, maximum)
+
 
 def convert(fp, dat_fp, file_format):
     """Convert a .RAW from one dtype format to another
@@ -126,7 +131,7 @@ def convert(fp, dat_fp, file_format):
         args (Argparser): user-defined parameters
         fp (str): filepath to input file
     """
-    logging.debug(f"convert({fp}, {dat_fp}, {file_format})")
+    logging.debug(f'convert({fp}, {dat_fp}, {file_format})')
     d = dat.read(dat_fp)
     logging.debug(d)
     x, y, z = d['xdim'], d['ydim'], d['zdim']
@@ -136,7 +141,9 @@ def convert(fp, dat_fp, file_format):
 
     # Base case: if volume is already desired format
     if file_format == bit_depth:
-        logging.info(f"Skipping '{fp}'. It is already desired file format: {file_format}.")
+        logging.info(
+            f"Skipping '{fp}'. It is already desired file format: {file_format}.",
+        )
         return
 
     # Assign output filepath
@@ -155,7 +162,10 @@ def convert(fp, dat_fp, file_format):
         input_maximum = np.iinfo(np.dtype(bit_depth)).max
     elif bit_depth == 'float32':
         # To improve conversion time, define a buffer size of N slices at a time
-        input_minimum, input_maximum = find_float_range(fp, buffer_size=buffer_size)
+        input_minimum, input_maximum = find_float_range(
+            fp,
+            buffer_size=buffer_size,
+        )
     else:
         raise ValueError(f"Input format, '{bit_depth}' , is not supported.")
 
@@ -169,17 +179,28 @@ def convert(fp, dat_fp, file_format):
     else:
         raise ValueError(f"Output format, '{file_format}', is not supported.")
 
-    logging.debug(f"Writing {op}")
-    logging.debug(f"Input range [{input_minimum}, {input_maximum}], Output range [{output_minimum}, {output_maximum}]")
+    logging.debug(f'Writing {op}')
+    logging.debug(
+        f'Input range [{input_minimum}, {input_maximum}], Output range [{output_minimum}, {output_maximum}]',
+    )
     # Convert
     with open(fp, 'rb', buffering=buffer_size) as ifp, open(op, 'wb') as ofp:
-        pbar = tqdm(total = z, desc=f"Converting '{os.path.basename(fp)}' ({bit_depth} -> {file_format})")
+        pbar = tqdm(
+            total=z,
+            desc=f"Converting '{os.path.basename(fp)}' ({bit_depth} -> {file_format})",
+        )
         buffer = ifp.read(buffer_size)
         pbar.update(1)
         while buffer:
             chunk = np.frombuffer(buffer, dtype=bit_depth)
             # Scale input
-            sdf = scale(chunk, input_minimum, input_maximum, output_minimum, output_maximum).astype(file_format)
+            sdf = scale(
+                chunk,
+                input_minimum,
+                input_maximum,
+                output_minimum,
+                output_maximum,
+            ).astype(file_format)
             sdf.tofile(ofp)
 
             # Read more data
@@ -189,4 +210,10 @@ def convert(fp, dat_fp, file_format):
 
     # Write DAT file for converted volume
     dat_op = f'{os.path.splitext(dat_fp)[0]}-{file_format}.dat'
-    dat.write(fp = dat_op, dimensions=(x,y,z), thickness=(d['x_thickness'], d['y_thickness'], d['z_thickness']), dtype=file_format, model=d['model'] )
+    dat.write(
+        fp=dat_op,
+        dimensions=(x, y, z),
+        thickness=(d['x_thickness'], d['y_thickness'], d['z_thickness']),
+        dtype=file_format,
+        model=d['model'],
+    )
