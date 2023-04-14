@@ -26,6 +26,7 @@ def img2pct(path, format="out", **kwargs):
     parent_path = os.path.dirname(path)
     folder_name = os.path.basename(path)
     output_fpath = os.path.join(parent_path, folder_name+f".{format}")
+    dryrun = kwargs.get("dryrun", False)
 
     logging.debug(f"{parent_path=}")
     logging.debug(f"{folder_name=}")
@@ -62,7 +63,7 @@ def img2pct(path, format="out", **kwargs):
         indices = np.array(indices)
         indices = np.transpose(indices)
 
-        if 'dryrun' in kwargs and not kwargs["dryrun"]:
+        if dryrun:
             with open(output_fpath, "wb+") as ifp:
                 np.savetxt(ifp, np.array([0.15]), fmt='%s')
                 np.savetxt(ifp, np.array([int(len(indices))]), fmt='%s')
@@ -89,7 +90,7 @@ def img2pct(path, format="out", **kwargs):
         
         vertices = np.column_stack((prefixes, indices))
 
-        if 'dryrun' in kwargs and not kwargs["dryrun"]:
+        if dryrun:
             with open(output_fpath, "wb+") as ifp:
                 np.savetxt(ifp, vertices[..., (0, 2, 3, 1)],
                            fmt='%s', delimiter=' ')                    
@@ -109,7 +110,7 @@ def img2pct(path, format="out", **kwargs):
         indices = np.array(indices)
         indices = np.transpose(indices)
 
-        if 'dryrun' in kwargs and not kwargs["dryrun"]:
+        if dryrun:
             with open(output_fpath, "wb+") as ifp:
                 np.savetxt(ifp, indices[..., (1, 2, 0)], fmt='%s', delimiter=' ')
             logging.info(f"Created point-cloud data file: '{output_fpath}'")
