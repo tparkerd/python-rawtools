@@ -1,11 +1,9 @@
----
-title: RAW Tools
----
+# RAW Tools
 
 Utility library for consuming and manipulating x-ray volume data in
 `.raw` format.
 
-# Features
+## Features
 
 - Convert float32, uint16, and uint8 versions of `.raw` XRT volume
     data
@@ -16,14 +14,14 @@ Utility library for consuming and manipulating x-ray volume data in
 - Generate previews of XRT volumes for quality control (e.g., maximum
     density projections, midslice extraction, etc.)
 
-# Planned Features
+## Planned Features
 
 - Generate dummy `.raw` files for testing downstream pipelines
 - Batch conversion of `.nsihdr` on Linux systems
 - Density adjustment (similar to automated adjustment MATLAB scripts
     for `rootseg`)
 
-# Related Projects
+## Related Projects
 
 - [xrcap](https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline):
     root crown image analysis pipeline
@@ -37,7 +35,7 @@ Utility library for consuming and manipulating x-ray volume data in
 - [xrt-dmt](https://github.com/Topp-Roots-Lab/xrt-dmt): data
     management tool for tracking and archiving XRT (meta)data
 
-# Credits
+## Credits
 
 This package was created with
 [Cookiecutter](https://github.com/audreyr/cookiecutter-pypackage) and

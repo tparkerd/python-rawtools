@@ -1,11 +1,10 @@
----
-title: Credits
----
+# Credits
 
-# Development Lead
+## Development Lead
 
--   Tim Parker \<\<<tim.parkerd@gmail.com>\>\>
+- Tim Parker \<tim.parkerd@gmail.com\>
 
-# Contributors
+## Contributors
 
--   Kenan Oestreich \<\<<koestreich@danforthcenter.org>\>\>
+- Ni Jiang \<njiang@danforthcenter.org\>
+- Kenan Oestreich \<koestreich@danforthcenter.org\>
