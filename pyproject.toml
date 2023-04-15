@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rawtools"
+authors = [
+    { name = "Tim Parker", email = "Tim.ParkerD@gmail.com" },
+    { name = "Ni Jiang", email = "njiang@danforthcenter.org" },
+    { name = "Kenan Oestreich", email = "koestreich@danforthcenter.org" },
+]
+requires-python = ">=3.7"
+keywords = ["xrt", "ct", "raw", "x-ray"]
+license = { text = "BSD-3-Clause" }
+classifiers = [
+    'Development Status :: 2 - Pre-Alpha',
+    'Intended Audience :: Developers',
+    'Natural Language :: English',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.10',
+]
+dynamic = ["version", "dependencies", "readme", "description"]
+
+[tool.setuptools.packages.find]
+exclude = ["tests*", "testing*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "rawtools.__version__"}
+readme = {file = ["README.md", "USAGE.md"]}
+description = {file = "DESCRIPTION"}
+dependencies = {file = ["requirements.txt"]}
+
+# [project.entry-points]
+# ...
