@@ -27,18 +27,17 @@ def slice_uint16_high_variance():
     """Sample uint16 slice with variable values"""
     return np.array(
         [-1, 0, 100, 1000, 5000, 14830, 50321, 65535, 65536],
-        dtype=uint16,
-    )
+    ).astype(dtype=uint16)
 
 
 @pytest.fixture
 def dat_files():
     """Sample .dat files' paths"""
     return [
-        'tests/test_supplements/ideal_dragonfly.dat',
-        'tests/test_supplements/ideal_nsi.dat',
-        'tests/test_supplements/poor_dragonfly.dat',
-        'tests/test_supplements/poor_nsi.dat',
+        'testing/resources/ideal_dragonfly.dat',
+        'testing/resources/ideal_nsi.dat',
+        'testing/resources/poor_dragonfly.dat',
+        'testing/resources/poor_nsi.dat',
     ]
 
 
