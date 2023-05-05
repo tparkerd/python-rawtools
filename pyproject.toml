@@ -1,34 +1,43 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "rawtools"
+keywords = ["xrt", "ct", "raw", "x-ray"]
+requires-python = ">=3.8"
 authors = [
     { name = "Tim Parker", email = "Tim.ParkerD@gmail.com" },
     { name = "Ni Jiang", email = "njiang@danforthcenter.org" },
     { name = "Kenan Oestreich", email = "koestreich@danforthcenter.org" },
 ]
-requires-python = ">=3.7"
-keywords = ["xrt", "ct", "raw", "x-ray"]
+maintainers = [{ name = "Tim Parker", email = "Tim.ParkerD@gmail.com" }]
 license = { text = "BSD-3-Clause" }
 classifiers = [
     'Development Status :: 2 - Pre-Alpha',
     'Intended Audience :: Developers',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: Implementation :: CPython'
 ]
 dynamic = ["version", "dependencies", "readme", "description"]
+
+[project.urls]
+homepage = "https://github.com/Topp-Roots-Lab/python-rawtools"
+documentation = "https://github.com/Topp-Roots-Lab/python-rawtools"
+repository = "https://github.com/Topp-Roots-Lab/python-rawtools"
+issues = "https://github.com/Topp-Roots-Lab/python-rawtools/issues"
 
 [tool.setuptools.packages.find]
 exclude = ["tests*", "testing*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "rawtools.__version__"}
 readme = {file = ["README.md", "USAGE.md"]}
 description = {file = "DESCRIPTION"}
 dependencies = {file = ["requirements.txt"]}
 
-# [project.entry-points]
-# ...
+[project.scripts]
+rawtools = "rawtools.cli:main"
+
+[tool.setuptools_scm]
