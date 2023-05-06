@@ -1,6 +1,7 @@
 bump2version
 coverage
 flake8
+mypy
 pip
 pre-commit
 
@@ -9,5 +10,6 @@ pytest-runner
 Sphinx
 tox
 twine
+types-Pillow
 watchdog
 wheel
