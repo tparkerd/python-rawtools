@@ -19,9 +19,9 @@ from tkinter import ttk
 from tkinter import W
 from tqdm import tqdm
 
-from rawtools import dat
-from rawtools import nsiefx
 from rawtools.convert import scale
+from rawtools.convert.image import nsiefx
+from rawtools.convert.text import dat
 from rawtools.gui import nsihdr
 
 # Load in NSI SDK

@@ -15,7 +15,7 @@ from tkinter import ttk
 from tkinter import W
 from ttkthemes import ThemedTk
 
-from rawtools import nsihdr
+from rawtools.convert.image import nsihdr
 
 __version__ = version('rawtools')
 
@@ -40,7 +40,7 @@ def center(root, toplevel):
 
 class App:
     def __init__(self, args):
-        self.source = 'C:/Users/Tim Parker/Datasets/topp/xrt/development/batch2'
+        self.source = 'C:/Users/Tim Parker/Datasets/topp/xrt/development/batch2'  # TODO: remove absolute ref
         self.args = args
         # Source: https://www.elegantthemes.com/blog/freebie-of-the-week/beautiful-flat-icons-for-free
         self.icon_fp = 'rawtools\\assets\\tools.ico'
