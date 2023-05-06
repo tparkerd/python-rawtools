@@ -7,20 +7,20 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from rawtools.utils.paths import collect_datasets
-from rawtools.utils.paths import Dataset
-from rawtools.utils.paths import file2metatype
-from rawtools.utils.paths import find_slice_directories
-from rawtools.utils.paths import infer_filetype_from_path
-from rawtools.utils.paths import is_slice
-from rawtools.utils.paths import is_slice_directory
-from rawtools.utils.paths import omit_duplicate_paths
-from rawtools.utils.paths import omit_inaccessible_files
-from rawtools.utils.paths import prune_paths
-from rawtools.utils.paths import resolve_real_paths
-from rawtools.utils.paths import slice_metatype_from_directory
-from rawtools.utils.paths import standardize_nsi_project_name
-from rawtools.utils.paths import standardize_sample_name
+from rawtools.utils.path import collect_datasets
+from rawtools.utils.path import Dataset
+from rawtools.utils.path import file2metatype
+from rawtools.utils.path import find_slice_directories
+from rawtools.utils.path import infer_filetype_from_path
+from rawtools.utils.path import is_slice
+from rawtools.utils.path import is_slice_directory
+from rawtools.utils.path import omit_duplicate_paths
+from rawtools.utils.path import omit_inaccessible_files
+from rawtools.utils.path import prune_paths
+from rawtools.utils.path import resolve_real_paths
+from rawtools.utils.path import slice_metatype_from_directory
+from rawtools.utils.path import standardize_nsi_project_name
+from rawtools.utils.path import standardize_sample_name
 
 
 @pytest.mark.parametrize(

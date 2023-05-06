@@ -16,7 +16,7 @@ from rawtools.constants import IMAGE_OUTPUT_BITDEPTHS
 from rawtools.constants import KNOWN_FILETYPES
 from rawtools.constants import PROJECTION_OPTIONS
 from rawtools.convert import convert
-from rawtools.utils.paths import prune_paths
+from rawtools.utils.path import prune_paths
 
 
 def known_filetype(filetype: str) -> str:
