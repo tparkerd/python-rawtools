@@ -6,11 +6,11 @@ from string import Template
 # ==============================================================================
 # File Formats
 # ==============================================================================
-TEXT_FILETYPES = ['txt', 'dat', 'nsipro', 'csv']
-VOXEL_FILETYPES = ['png', 'out', 'obj', 'xyz']
-VOLUME_FILETYPES = ['png', 'tif', 'raw']
-SLICE_FILETYPES = ['png', 'tif']
-ATOMIC_FILETYPES = ['raw', 'out', 'obj', 'xyz']
+TEXT_FILETYPES = ['txt', 'dat', 'nsipro', 'csv', 'TXT', 'DAT', 'NSIPRO', 'CSV']
+VOXEL_FILETYPES = ['png', 'out', 'obj', 'xyz', 'PNG', 'OUT', 'OBJ', 'XYZ']
+VOLUME_FILETYPES = ['png', 'tif', 'raw', 'PNG', 'TIF', 'RAW']
+COMPOSITE_FILETYPES = ['png', 'tif', 'tif', 'PNG', 'TIF', 'TIFF']
+ATOMIC_FILETYPES = ['raw', 'out', 'obj', 'xyz', 'RAW', 'OUT', 'OBJ', 'XYZ']
 KNOWN_FILETYPES = dict(
     text=TEXT_FILETYPES,
     voxel=VOXEL_FILETYPES,

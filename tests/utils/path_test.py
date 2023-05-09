@@ -7,18 +7,16 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from rawtools.utils.path import collect_datasets
-from rawtools.utils.path import Dataset
-from rawtools.utils.path import file2metatype
 from rawtools.utils.path import find_slice_directories
 from rawtools.utils.path import infer_filetype_from_path
+from rawtools.utils.path import infer_metatype_from_directory
+from rawtools.utils.path import infer_metatype_from_path
 from rawtools.utils.path import is_slice
 from rawtools.utils.path import is_slice_directory
 from rawtools.utils.path import omit_duplicate_paths
 from rawtools.utils.path import omit_inaccessible_files
 from rawtools.utils.path import prune_paths
 from rawtools.utils.path import resolve_real_paths
-from rawtools.utils.path import slice_metatype_from_directory
 from rawtools.utils.path import standardize_nsi_project_name
 from rawtools.utils.path import standardize_sample_name
 
@@ -39,12 +37,12 @@ from rawtools.utils.path import standardize_sample_name
     ],
 )
 def test_file2metatype(test_input, expected):
-    assert file2metatype(test_input) == expected
+    assert infer_metatype_from_path(test_input) == expected
 
 
 def test_file2metatype_error():
     with pytest.raises(Exception, match=r'.* is an unknown file format.'):
-        file2metatype('./data.foo')
+        infer_metatype_from_path('./data.foo')
 
 
 @pytest.mark.parametrize(
@@ -190,7 +188,7 @@ def test_find_slice_directories(fs):
     fpath = non_slice_dpath / 'foo.png'
     im.save(fpath)
 
-    assert find_slice_directories(dpath.absolute(), 'png') == ['/data/valid']
+    assert find_slice_directories(dpath.absolute()) == ['/data/valid']
 
 
 def test_find_slice_directories_recursive(fs):
@@ -229,9 +227,14 @@ def test_find_slice_directories_recursive(fs):
     fpath = non_slice_dpath / 'foo.png'
     im.save(fpath)
 
-    result = set(find_slice_directories('/', 'png', recursive=True))
-    expected = {str(valid_dpath.absolute()), str(nested_dpath.absolute()), str(deeply_nested_dpath.absolute())}
-    difference = result ^ expected
+    result = find_slice_directories('/', recursive=True)
+    expected = {
+        str(valid_dpath.absolute()),
+        str(nested_dpath.absolute()),
+        str(deeply_nested_dpath.absolute()),
+    }
+    assert len(result) == len(expected)
+    difference = set(result) ^ expected
     assert not difference
 
 
@@ -251,7 +254,7 @@ def test_is_slice_directory(test_input, expected, fs):
     im = Image.fromarray(imarray.astype('uint8')).convert('RGBA')
     fpath = dpath / filename
     im.save(fpath)
-    assert is_slice_directory(directory_name, 'png') == expected
+    assert is_slice_directory(directory_name) == expected
 
 
 def test_is_slice_directory_missing_slices(fs):
@@ -259,7 +262,7 @@ def test_is_slice_directory_missing_slices(fs):
     fs.create_dir(dpath)
     fpath = dpath / 'data_0000.txt'
     fs.create_file(fpath, contents='not a slice')
-    assert not is_slice_directory(dpath, 'png')
+    assert not is_slice_directory(dpath)
 
 
 def test_is_slice_directory_invalid_slice(fs):
@@ -267,13 +270,13 @@ def test_is_slice_directory_invalid_slice(fs):
     fs.create_dir(dpath)
     fpath = dpath / 'data_0000.png'
     fs.create_file(fpath, contents='not a slice')
-    assert not is_slice_directory(dpath, 'png')
+    assert not is_slice_directory(dpath)
 
 
 def test_is_slice_directory_failure_regular_file(fs):
     path = Path('data')
     fs.create_file(path)
-    is_slice_directory(path, 'png')
+    is_slice_directory(path)
 
 
 @pytest.mark.parametrize(
@@ -318,7 +321,7 @@ def test_slice_metatype_from_directory_volume(fs):
         im = Image.fromarray(imarray.astype('uint8')).convert('RGBA')
         fpath = dpath / f'data_{i:04}.png'
         im.save(fpath)
-    assert slice_metatype_from_directory(dpath, 'png') == 'volume'
+    assert infer_metatype_from_directory(dpath) == 'volume'
 
 
 def test_slice_metatype_from_directory_voxel(fs):
@@ -330,7 +333,7 @@ def test_slice_metatype_from_directory_voxel(fs):
         im = Image.fromarray(imarray).convert('L')
         fpath = dpath / f'data_{i:04}.png'
         im.save(fpath)
-    assert slice_metatype_from_directory(dpath, 'png') == 'voxel'
+    assert infer_metatype_from_directory(dpath) == 'voxel'
 
 
 def test_slice_metatype_from_directory_failure_unknown_slice(fs):
@@ -342,21 +345,20 @@ def test_slice_metatype_from_directory_failure_unknown_slice(fs):
         fpath = dpath / f'data_{i:04}.png'
         im.save(fpath)
     with pytest.raises(Exception, match=r'^Edge case detected. All slices tested contain a single value.*'):
-        assert slice_metatype_from_directory(dpath, 'png')
+        assert infer_metatype_from_directory(dpath)
 
 
 def test_slice_metatype_from_directory_failure_regular_file(fs):
     fs.create_file('/data')
     with pytest.raises(NotADirectoryError):
-        assert slice_metatype_from_directory('/data', 'png')
+        assert infer_metatype_from_directory('/data')
 
 
 def test_slice_metatype_from_directory_failure_missing_slices(fs):
     fpath = Path('data', 'data_0000.png')
-    ext = 'tif'
     fs.create_file(fpath, contents='not a slice', create_missing_dirs=True)
     with pytest.raises(Exception, match='No valid slices were found.'):
-        assert slice_metatype_from_directory(fpath.parent, ext)
+        assert infer_metatype_from_directory(fpath.parent)
 
 
 @pytest.mark.parametrize(
@@ -435,53 +437,3 @@ def test_standardize_nsi_project_name_failure_empty():
 def test_standardize_sample_name(fs):
     with pytest.raises(NotImplementedError):
         standardize_sample_name('')
-
-
-# TODO: add obj, dat, txt, tif, and other datatypes
-def test_collect_datasets(fs):
-    dpath = Path('data')
-
-    # Arbitrary image
-    imarray = np.random.rand(100, 100, 3) * 255
-    im = Image.fromarray(imarray.astype('uint8')).convert('RGBA')
-    binary_imarray = np.zeros((100, 100), dtype='uint8')
-    binary_imarray[0, 0] = 255
-    bin_im = Image.fromarray(binary_imarray).convert('L')
-
-    # Valid slice directory
-    valid_dpath = dpath / 'valid'
-    fs.create_dir(valid_dpath)
-    for i in range(10):
-        fpath = valid_dpath / f'valid_{i:04}.png'
-        im.save(fpath)
-
-    # Invalid slice
-    invalid_dpath = dpath / 'invalid'
-    for i in range(10, 30):
-        fpath = invalid_dpath / f'invalid_{i:04}.png'
-        fs.create_file(fpath, contents='invalid slice', create_missing_dirs=True)
-
-    # Nested slice directory
-    nested_dpath = dpath / 'nest_a' / 'nested_sample'
-    fs.create_dir(nested_dpath)
-    for i in range(15):
-        fpath = nested_dpath / f'nested_sample_{i:04}.png'
-        im.save(fpath)
-
-    # Nested slice directory (within a slice directory, binary)
-    deeply_nested_dpath = dpath / 'nest_a' / 'nested_sample' / 'deeply_nested'
-    fs.create_dir(deeply_nested_dpath)
-    for i in range(10):
-        fpath = deeply_nested_dpath / f'deeply_nested_{i:04}.png'
-        bin_im.save(fpath)
-
-    # Non-slice directories
-    non_slice_dpath = dpath / 'non_slice_containing_image_directory'
-    fs.create_dir(non_slice_dpath)
-    fpath = non_slice_dpath / 'foo.png'
-    im.save(fpath)
-
-    result = set(collect_datasets('/data', filetype='png', recursive=True))
-    expected = {Dataset(str(valid_dpath.absolute()), 'volume', 'png'), Dataset(str(nested_dpath.absolute()), 'volume', 'png'), Dataset(str(deeply_nested_dpath.absolute()), 'voxel', 'png')}
-    difference = result ^ expected
-    assert not difference

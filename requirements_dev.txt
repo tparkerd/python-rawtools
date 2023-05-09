@@ -4,8 +4,10 @@ flake8
 mypy
 pip
 pre-commit
+pyfakefs
 
 pytest
+pytest-datadir
 pytest-runner
 Sphinx
 tox
