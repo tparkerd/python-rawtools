@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from difflib import get_close_matches
+from functools import cached_property
 from functools import reduce
 from typing import Sequence
 
@@ -43,11 +44,35 @@ class Raw(Dataset):
 
     @property
     def min(self) -> int | float:
-        raise NotImplementedError
+        lbound, _ = self.minmax
+        return lbound
 
     @property
     def max(self) -> int | float:
-        raise NotImplementedError
+        _, ubound = self.minmax
+        return ubound
+
+    @cached_property
+    def minmax(self) -> tuple[int | float, int | float]:
+        with open(self.path, 'rb') as buffer:
+            chunk_size = self.x * self.y * np.dtype(self.bitdepth).itemsize
+            chunk = np.fromfile(
+                buffer,
+                dtype=self.bitdepth,
+                count=chunk_size,
+            )
+            lowest_found_value = np.min(chunk)
+            greatest_found_value = np.max(chunk)
+            for idx in range(1, self.z):
+                buffer.seek(idx * chunk_size)
+                chunk = np.fromfile(
+                    buffer,
+                    dtype=self.bitdepth,
+                    count=chunk_size,
+                )
+                lowest_found_value = min(lowest_found_value, np.min(chunk))
+                greatest_found_value = max(greatest_found_value, np.max(chunk))
+        return lowest_found_value, greatest_found_value
 
     @classmethod
     def from_dataset(cls, obj: Dataset) -> Raw:
@@ -130,7 +155,7 @@ class Raw(Dataset):
             old_max = np.iinfo(np.dtype(self.bitdepth)).max
         # Otherwise, assume float32 input
         else:
-            old_min, old_max = self.min, self.max  # TODO, implement the property methods
+            old_min, old_max = self.minmax
         # If output image bit depth is an integer, get the max and min with
         # iinfo
         if np.issubdtype(np.dtype(img_bitdepth), np.integer):
@@ -142,7 +167,6 @@ class Raw(Dataset):
             new_max = float(np.finfo(np.dtype(img_bitdepth)).max)
 
         # For each slice, read data, create target filename,
-        # TODO: use self.bitdepth and requested bitdepth to convert
         # TODO: add multiprocessing
         with open(self.path, 'rb') as buffer:
             for idx in range(0, self.z):
