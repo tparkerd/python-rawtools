@@ -120,8 +120,9 @@ from PIL import ImageMath
 from tqdm import tqdm
 
 from rawtools import __version__
-from rawtools import log
-from rawtools.convert.text import dat
+from rawtools.text import dat
+from rawtools.text.dat import bitdepth_from_format
+# from rawtools import log
 
 font = None
 
@@ -141,7 +142,7 @@ def sizeof_fmt(num, suffix='B', factor=1000.0):
     return '{:.1f}{}{}'.format(num, 'Y', suffix)
 
 
-def get_top_down_projection(args, fp):
+def get_top_down_projection(args, fpath):
     """Generate a projection from the top-down view of a volume, using its
     maximum values per horizontal slice
 
@@ -151,25 +152,30 @@ def get_top_down_projection(args, fp):
 
     """
     # Extract the resolution from .DAT file
-    dat_fp = rawfp2datfp(fp)
+    dat_fp = rawfp2datfp(fpath)
     logging.debug(f'{dat_fp=}')
-    x, y, z = dat.read(dat_fp)['dimensions']
+    metadata = dat.read(dat_fp)
+    x, y, z = metadata.dimensions
+    bitdepth = dat.bitdepth_from_format(metadata.format)
     logging.debug(f'Volume dimensions: {x}, {y}, {z}')
 
     # NOTE(tparker): Patch to skip volumes of unexpected size
-    expected_size = x * y * z * 2
+    expected_size = x * y * z * np.dtype(bitdepth).itemsize
     # bytes
-    actual_size = Path(fp).stat().st_size
+    actual_size = Path(fpath).stat().st_size
     if expected_size != actual_size:
         logging.error(
-            f"Cannot process '{fp}'. Volume was expected to be of size '{expected_size}' but was '{actual_size}'. Please check data for corruption.",
+            f"Cannot process '{fpath}'. Volume was expected to be of size '{expected_size}' but was '{actual_size}'. Please check data for corruption.",
         )
         return
-
+    if 'float' in bitdepth:
+        ext = 'tiff'
+    else:
+        ext = 'png'
     # Determine output location and check for conflicts
     ofp = os.path.join(
         args.cwd,
-        f'{os.path.basename(os.path.splitext(fp)[0])}-projection-top.png',
+        f'{os.path.basename(os.path.splitext(fpath)[0])}-projection-top.{ext}',
     )
     if os.path.exists(ofp) and os.path.isfile(ofp):
         # If file creation not forced, do not process volume, return
@@ -184,7 +190,7 @@ def get_top_down_projection(args, fp):
 
     # Calculate the number of bytes in a *single* slice of .RAW datafile
     # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
-    buffer_size = x * y * np.dtype('uint16').itemsize
+    buffer_size = x * y * np.dtype(bitdepth).itemsize
     logging.debug(
         f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes',
     )
@@ -192,22 +198,22 @@ def get_top_down_projection(args, fp):
     if not args.verbose:
         # progress bar
         pbar = tqdm(total=z, desc='Generating top-down projection')
-    with open(fp, mode='rb', buffering=buffer_size) as ifp:
+    with open(fpath, mode='rb', buffering=buffer_size) as ifp:
         # Load in the first slice
         byte_slice = ifp.read(buffer_size)  # Byte sequence
         try:
-            np.zeros(y * x, dtype=np.uint16).reshape(y, x)
+            np.zeros(y * x, dtype=np.dtype(bitdepth)).reshape(y, x)
         except Exception as err:
             logging.error(err)
             return
 
-        raw_image_data = np.zeros(y * x, dtype=np.uint16).reshape(y, x)
+        raw_image_data = np.zeros(y * x, dtype=np.dtype(bitdepth)).reshape(y, x)
         # For each slice in the volume....
         while len(byte_slice) > 0:
             # Convert bytes to 16-bit values
             byte_sequence_max_values = np.frombuffer(
                 byte_slice,
-                dtype=np.uint16,
+                dtype=np.dtype(bitdepth),
             )
             # Create a 2-D array of the data that is analogous to the image
             byte_sequence_max_values = byte_sequence_max_values.reshape(y, x)
@@ -226,7 +232,7 @@ def get_top_down_projection(args, fp):
 
         # Convert raw bytes to array of 16-bit values
         logging.debug(f'raw_image_data shape: {np.shape(raw_image_data)}')
-        arr = np.frombuffer(raw_image_data, dtype=np.uint16)
+        arr = np.frombuffer(raw_image_data, dtype=np.dtype(bitdepth))
         logging.debug(f'raw_image_data pixel count: {len(arr)}')
         # Change the array from a byte sequence to a 2-D array with the same
         # dimensions as the image
@@ -234,7 +240,16 @@ def get_top_down_projection(args, fp):
             arr = raw_image_data
             array_buffer = arr.tobytes()
             pngImage = Image.new('I', arr.T.shape)
-            pngImage.frombytes(array_buffer, 'raw', 'I;16')
+
+            if bitdepth == 'uint8':
+                mode = 'L'
+            elif bitdepth == 'uint16':
+                mode = 'I;16'
+            elif bitdepth == 'float32' or bitdepth == 'float':
+                mode = 'F'
+            else:
+                mode = 'I;16'
+            pngImage = Image.frombytes(mode, (x, y), array_buffer, decoder_name='raw')
             pngImage.save(ofp)
 
         except Exception as err:
@@ -244,7 +259,7 @@ def get_top_down_projection(args, fp):
             logging.debug(f"Saving top-down projection as '{ofp}'")
 
 
-def get_side_projection(args, fp):
+def get_side_projection(args, fpath):
     """Generate a projection from the profile view a volume, using its maximum
     values per slice
 
@@ -255,19 +270,21 @@ def get_side_projection(args, fp):
     """
     global font
     # Extract the resolution from .DAT file
-    dat_fp = rawfp2datfp(fp)
+    dat_fp = rawfp2datfp(fpath)
     logging.debug(f'{dat_fp=}')
-    x, y, z = dat.read(dat_fp)['dimensions']
+    metadata = dat.read(dat_fp)
+    x, y, z = metadata.dimensions
+    bitdepth = bitdepth_from_format(metadata.format)
     logging.debug(f'Volume dimensions: {x}, {y}, {z}')
 
     # NOTE(tparker): Patch to skip volumes of unexpected size
-    expected_size = x * y * z * 2
+    expected_size = x * y * z * np.dtype(bitdepth).itemsize
     # bytes
-    actual_size = Path(fp).stat().st_size
+    actual_size = Path(fpath).stat().st_size
     if expected_size != actual_size:
         if not args.force:
             logging.error(
-                f"Cannot process '{fp}'. Volume was expected to be of size '{expected_size}' but was '{actual_size}'. Please check data for corruption.",
+                f"Cannot process '{fpath}'. Volume was expected to be of size '{expected_size}' but was '{actual_size}'. Please check data for corruption.",
             )
             return
         else:
@@ -277,7 +294,7 @@ def get_side_projection(args, fp):
             # incomplete data, so do not process it
             if size_delta < 0:
                 logging.error(
-                    "Cannot process '{fp}'. Volume was larger than expected. Volume was expected to be of size '{expected_size}' but was '{actual_size}'. Please check data for corruption.",
+                    f"Cannot process '{fpath}'. Volume was larger than expected. Volume was expected to be of size '{expected_size}' but was '{actual_size}'. Please check data for corruption.",
                 )
             else:
                 z_prime = math.floor(actual_size / (x * y * 2))
@@ -286,10 +303,14 @@ def get_side_projection(args, fp):
                 )
                 z = z_prime
 
+    if 'float' in bitdepth:
+        ext = 'tiff'
+    else:
+        ext = 'png'
     # Determine output location and check for conflicts
     ofp = os.path.join(
         args.cwd,
-        f'{os.path.basename(os.path.splitext(fp)[0])}-projection-side.png',
+        f'{os.path.basename(os.path.splitext(fpath)[0])}-projection-side.{ext}',
     )
     if os.path.exists(ofp) and os.path.isfile(ofp):
         # If file creation not forced, do not process volume, return
@@ -304,7 +325,7 @@ def get_side_projection(args, fp):
 
     # Calculate the number of bytes in a *single* slice of .RAW datafile
     # NOTE(tparker): This assumes that a unsigned 16-bit .RAW volume
-    buffer_size = x * y * np.dtype('uint16').itemsize
+    buffer_size = x * y * np.dtype(bitdepth).itemsize
     logging.debug(
         f'Allocated memory for a slice (i.e., buffer_size): {buffer_size} bytes',
     )
@@ -312,18 +333,18 @@ def get_side_projection(args, fp):
     if not args.verbose:
         pbar = tqdm(
             total=z,
-            desc=f"Generating side-view projection for '{os.path.basename(fp)}'",
+            desc=f"Generating side-view projection for '{os.path.basename(fpath)}'",
         )  # progress bar
-    with open(fp, mode='rb', buffering=buffer_size) as ifp:
+    with open(fpath, mode='rb', buffering=buffer_size) as ifp:
         # Load in the first slice
         byte_slice = ifp.read(buffer_size)  # Byte sequence
         raw_image_data = bytearray()
         # For each slice in the volume....
         while len(byte_slice) == buffer_size:
-            # Convert bytes to 16-bit values
+            # Convert bytes to bit values
             byte_sequence_max_values = np.frombuffer(
                 byte_slice,
-                dtype=np.uint16,
+                dtype=np.dtype(bitdepth),
             )
 
             # Create a 2-D array of the data that is analogous to the image
@@ -334,7 +355,7 @@ def get_side_projection(args, fp):
                 byte_sequence_max_values,
                 axis=0,
             )
-            # Convert 16-bit values back to bytes
+            # Convert bit values back to bytes
             byte_sequence_max_values = byte_sequence_max_values.tobytes()
 
             # Append the maximum values to the resultant image
@@ -347,22 +368,32 @@ def get_side_projection(args, fp):
         if not args.verbose:
             pbar.close()
 
-        # Convert raw bytes to array of 16-bit values
+        # Convert raw bytes to array of bit values
         logging.debug(f'raw_image_data length: {len(raw_image_data)}')
-        arr = np.frombuffer(raw_image_data, dtype=np.uint16)
+        arr = np.frombuffer(raw_image_data, dtype=np.dtype(bitdepth))
         logging.debug(f'arr length: {len(arr)}')
         # Change the array from a byte sequence to a 2-D array with the same
         # dimensions as the image
         try:
             logging.debug('Reshaping image')
             logging.debug(f'arr = arr.reshape([{x}, {z}])')
+            logging.debug(f'{metadata.dimensions=}')
             arr = arr.reshape([x, z])
             logging.debug('array_buffer = arr.tobytes()')
             array_buffer = arr.tobytes()
             logging.debug(f'pngImage = Image.new("I", {arr.shape})')
             pngImage = Image.new('I', arr.shape)
-            logging.debug("pngImage.frombytes(array_buffer, 'raw', \"I;16\")")
-            pngImage.frombytes(array_buffer, 'raw', 'I;16')
+            if bitdepth == 'uint8':
+                mode = 'L'
+            elif bitdepth == 'uint16':
+                mode = 'I;16'
+            elif bitdepth == 'float32' or bitdepth == 'float':
+                mode = 'F'
+            else:
+                mode = 'I;16'
+            # logging.debug(f"pngImage.frombytes(array_buffer, 'raw', '{mode}')")
+            # pngImage.frombytes(data=array_buffer, decoder_name='raw')
+            pngImage = Image.frombytes(mode, (x, z), array_buffer, decoder_name='raw')
             logging.debug('pngImage.save(ofp)')
             pngImage.save(ofp)
 
@@ -518,7 +549,7 @@ def cli():
     parser.add_argument('-V', '--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('-v', '--verbose', action='store_true', help='Increase output verbosity')
     parser.add_argument('-f', '--force', action='store_true', default=False, help='Force file creation. Overwrite any existing files.')
-    parser.add_argument('--si', action='store_true', default=False, help='Print human readable sizes (e.g., 1 K, 234 M, 2 G)')
+    parser.add_argument('--si', action='store_true', default=False, help='logging.debug human readable sizes (e.g., 1 K, 234 M, 2 G)')
     parser.add_argument('-p', '--projection', action='store', nargs='+', help="Generate projection using maximum values for each slice. Available options: [ 'top', 'side' ].")
     parser.add_argument('--scale', dest='step', const=100, action='store', nargs='?', default=argparse.SUPPRESS, type=int, help='Add scale on left side of a side projection. Step is the number of slices between each label. (default: 100)')
     parser.add_argument('-s', '--slice', dest='index', const=True, nargs='?', type=int, default=argparse.SUPPRESS, help="Extract a slice from volume's side view. (default: floor(x/2))")
@@ -527,7 +558,7 @@ def cli():
     args = parser.parse_args()
 
     args.module_name = 'qc'
-    log.configure(args)
+    # log.configure(args)
 
     return args
 
