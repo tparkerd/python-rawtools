@@ -4,7 +4,6 @@ import os
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Sequence
 
 from rawtools.constants import ATOMIC_FILETYPES
 from rawtools.constants import COMPOSITE_FILETYPES
@@ -96,7 +95,7 @@ class Dataset:
         return hash((self.path, self.metatype, self.ext))
 
 
-def collect_datasets(*paths: Sequence[FilePath], filetype: str, recursive: bool = False) -> list[Dataset]:
+def collect_datasets(*paths: FilePath, filetype: str, recursive: bool = False) -> list[Dataset]:
     """Recursively find all files that match file type
 
     Detectable  file formats:
