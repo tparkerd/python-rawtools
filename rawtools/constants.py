@@ -23,7 +23,7 @@ RAW_BITDEPTHS = ['uint8', 'uint16', 'float32']
 # Command Line Interface Options
 # ==============================================================================
 PROJECTION_OPTIONS = ['side', 'top']
-IMAGE_OUTPUT_BITDEPTHS = ['uint8', 'uint16', 'float32']
+OUTPUT_BITDEPTHS = ['uint8', 'uint16', 'float32']
 
 # ==============================================================================
 # Filename Templates & Patterns

@@ -12,8 +12,8 @@ from rich.console import Console
 
 from rawtools import __version__
 from rawtools import log
-from rawtools.constants import IMAGE_OUTPUT_BITDEPTHS
 from rawtools.constants import KNOWN_FILETYPES
+from rawtools.constants import OUTPUT_BITDEPTHS
 from rawtools.constants import PROJECTION_OPTIONS
 from rawtools.convert import convert
 from rawtools.utils.path import prune_paths
@@ -44,7 +44,7 @@ def __add_convert_options(parser: ArgumentParser):
     __add_global_options(parser)
     parser.add_argument('-F', '--from', metavar='FROM', dest='_from', type=known_filetype, help='input file format')
     parser.add_argument('-T', '--to', type=known_filetype, help='output file format')
-    parser.add_argument('-b', '--bit-depth', dest='dtype', default='uint8', choices=IMAGE_OUTPUT_BITDEPTHS, help='output bit-depth')
+    parser.add_argument('-b', '--bit-depth', dest='bitdepth', default='uint8', choices=OUTPUT_BITDEPTHS, help='output bit-depth')
     parser.add_argument('path', metavar='PATH', nargs='+', help='Input directory to process')
 
 
@@ -95,7 +95,7 @@ def main(*argv, **kwargs):
         qc_parser = subparsers.add_parser('qc', help='Perform quality control ')
         __add_quality_control_options(qc_parser)
 
-        args = parser.parse_args()
+        args = parser.parse_args(*argv)
         log.configure(module_name=args.command, **vars(args))
         args = __standardize_arguments(args)
         logging.debug(f'Standardized arguments: {pformat(vars(args))}')

@@ -128,13 +128,13 @@ def test_raw_to_slices(ext, bitdepth, tmp_path):
     target_dat_fpath = tmp_path / f'{fname}.dat'
     target_slices_path = tmp_path / f'{fname}'
 
-    dat_contents = f"""\
+    dat_contents = dedent(f"""\
     ObjectFileName: {fname}.raw
     Resolution:     {' '.join([str(x) for x in dims])}
     SliceThickness: 0.123456 0.123456 0.123456
     Format:         USHORT
     ObjectModel:    DENSITY
-    """
+    """)
     target_dat_fpath.write_text(dat_contents)
 
     # Create dummy data with a floating cube
@@ -177,13 +177,13 @@ def test_raw_to_slices_batch(ext, bitdepth, tmp_path):
         target_raw_fpath = tmp_path / f'{fname}.raw'
         target_dat_fpath = tmp_path / f'{fname}.dat'
 
-        dat_contents = f"""\
+        dat_contents = dedent(f"""\
         ObjectFileName: {fname}.raw
         Resolution:     {' '.join([str(x) for x in dims])}
         SliceThickness: 0.123456 0.123456 0.123456
         Format:         USHORT
         ObjectModel:    DENSITY
-        """
+        """)
         target_dat_fpath.write_text(dat_contents)
 
         # Create dummy data with a floating cube
@@ -224,13 +224,13 @@ def test_raw_to_raw(input_bitdepth, output_bitdepth, tmp_path):
         target_raw_fpath = tmp_path / f'{fname}.raw'
         target_dat_fpath = tmp_path / f'{fname}.dat'
 
-        dat_contents = f"""\
+        dat_contents = dedent(f"""\
         ObjectFileName: {fname}.raw
         Resolution:     {' '.join([str(x) for x in dims])}
         SliceThickness: 0.123456 0.123456 0.123456
         Format:         {dat.format_from_bitdepth(bitdepth)}
         ObjectModel:    DENSITY
-        """
+        """)
         dat_contents = dedent(dat_contents)
         target_dat_fpath.write_text(dat_contents)
 
@@ -282,13 +282,13 @@ def test_raw_to_raw_reshape(input_bitdepth, output_bitdepth, tmp_path):
         target_raw_fpath = tmp_path / f'{fname}.raw'
         target_dat_fpath = tmp_path / f'{fname}.dat'
 
-        dat_contents = f"""\
+        dat_contents = dedent(f"""\
         ObjectFileName: {fname}.raw
         Resolution:     {' '.join([str(x) for x in dims])}
         SliceThickness: 0.123456 0.123456 0.123456
         Format:         {dat.format_from_bitdepth(bitdepth)}
         ObjectModel:    DENSITY
-        """
+        """)
         dat_contents = dedent(dat_contents)
         target_dat_fpath.write_text(dat_contents)
 
@@ -296,7 +296,6 @@ def test_raw_to_raw_reshape(input_bitdepth, output_bitdepth, tmp_path):
         brightest_value = (2**(np.dtype(bitdepth).itemsize * 8) - 1)  # brightest value
         raw_data = (rg.sphere(radius=25, shape=(z, y, x), position=0.5) * brightest_value).astype(bitdepth)
         raw_bytes = raw_data.tobytes()
-        # target_raw_fpath.write_bytes(raw_bytes)
         with open(target_raw_fpath, 'wb') as ofp:
             ofp.write(raw_bytes)
         r = Raw(target_raw_fpath)
