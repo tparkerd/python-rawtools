@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import textwrap
 from math import prod
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from rawtools.utils import dat
+from rawtools.text import dat
 
 
 @pytest.mark.parametrize(
@@ -103,13 +104,13 @@ def test_dat_determine_bitdepth_from_dimensions_failure_too_large(fs):
 def test_dat_read_nsi_dat_failure(fs):
     fname = '2020_Universe_Examples_mismatch-filename'
     raw_fname, dat_fname = (f'{fname}.{ext}' for ext in ['raw', 'dat'])
-    dat_contents = f"""\
+    dat_contents = textwrap.dedent(f"""\
     ObjectFileName: {raw_fname}.raw
     Resolution:     10 11 12
     SliceThickness: 0.123456 0.123456 0.123456
     Format:         USHORT
     ObjectModelInvalid:    DENSITY
-    """
+    """)
     fs.create_file(dat_fname, contents=dat_contents)
     with pytest.raises(ValueError, match=r'Unable to parse.*'):
         dat.read(dat_fname)
@@ -118,7 +119,7 @@ def test_dat_read_nsi_dat_failure(fs):
 def test_dat_read_dragonfly_dat_failure(fs):
     fname = '2020_Universe_Examples_mismatch-filename'
     raw_fname, dat_fname = (f'{fname}.{ext}' for ext in ['raw', 'dat'])
-    dat_contents = f"""\
+    dat_contents = textwrap.dedent(f"""\
     <?xml ERROR version="1.0"?>
     <RAWFileData>
         <Version>1.000000e+00</Version>
@@ -132,7 +133,7 @@ def test_dat_read_dragonfly_dat_failure(fs):
         <Orientation X0="1.000000000000000e+00" X1="0.000000000000000e+00" X2="0.000000000000000e+00" Y0="0.000000000000000e+00" Y1="1.000000000000000e+00" Y2="0.000000000000000e+00" Z0="0.000000000000000e+00" Z1="0.000000000000000e+00" Z2="1.000000000000000e+00" />
         <Position P1="1.622085000000000e-04" P2="1.622085000000000e-04" P3="1.622085000000000e-04" />
     </RAWFileData>
-    """
+    """)
     fs.create_file(dat_fname, contents=dat_contents)
     with pytest.raises(ValueError, match=r'Unable to parse.*'):
         dat.read(dat_fname)
@@ -168,7 +169,7 @@ def test_dat_read_dat_nsi(fs):
 def test_dat_read_dat_dragonfly(fs):
     fname = '1887_108um_quarter'
     raw_fname, dat_fname = (f'{fname}.{ext}' for ext in ['raw', 'dat'])
-    dat_contents = f"""\
+    dat_contents = textwrap.dedent(f"""\
     <?xml version="1.0"?>
     <RAWFileData>
         <Version>1.000000e+00</Version>
@@ -182,7 +183,7 @@ def test_dat_read_dat_dragonfly(fs):
         <Orientation X0="1.000000000000000e+00" X1="0.000000000000000e+00" X2="0.000000000000000e+00" Y0="0.000000000000000e+00" Y1="1.000000000000000e+00" Y2="0.000000000000000e+00" Z0="0.000000000000000e+00" Z1="0.000000000000000e+00" Z2="1.000000000000000e+00" />
         <Position P1="1.622085000000000e-04" P2="1.622085000000000e-04" P3="1.622085000000000e-04" />
     </RAWFileData>
-    """
+    """)
     dat_fpath = Path('/', dat_fname)
     fs.create_file(dat_fpath, contents=dat_contents)
     result = dat.read(dat_fpath)

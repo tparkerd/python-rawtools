@@ -13,7 +13,7 @@ from skimage import transform
 from rawtools.constants import RAW_BITDEPTHS
 from rawtools.convert.image.utils import array_to_image
 from rawtools.convert.utils import scale
-from rawtools.utils import dat
+from rawtools.text import dat
 from rawtools.utils.dataset import Dataset
 from rawtools.utils.path import FilePath
 

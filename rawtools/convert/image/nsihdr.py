@@ -21,8 +21,8 @@ from tqdm import tqdm
 
 from rawtools.convert import scale
 from rawtools.convert.image import nsiefx
-from rawtools.convert.text import dat
 from rawtools.gui import nsihdr
+from rawtools.text import dat
 
 # Load in NSI SDK
 currentdir = os.path.dirname(os.path.realpath(__file__))

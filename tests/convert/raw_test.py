@@ -12,7 +12,7 @@ import raster_geometry as rg
 
 from rawtools.convert.image import raw
 from rawtools.convert.image.raw import Raw
-from rawtools.utils import dat
+from rawtools.text import dat
 from rawtools.utils.dataset import Dataset
 
 
