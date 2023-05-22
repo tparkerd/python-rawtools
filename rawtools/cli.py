@@ -42,7 +42,7 @@ def __add_global_options(parser: ArgumentParser):
 
 def __add_convert_options(parser: ArgumentParser):
     __add_global_options(parser)
-    parser.add_argument('-F', '--from', type=known_filetype, help='input file format')
+    parser.add_argument('-F', '--from', metavar='FROM', dest='_from', type=known_filetype, help='input file format')
     parser.add_argument('-T', '--to', type=known_filetype, help='output file format')
     parser.add_argument('-b', '--bit-depth', dest='dtype', default='uint8', choices=IMAGE_OUTPUT_BITDEPTHS, help='output bit-depth')
     parser.add_argument('path', metavar='PATH', nargs='+', help='Input directory to process')
