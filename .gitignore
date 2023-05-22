@@ -112,8 +112,8 @@ data/*
 data
 data/
 
-*.raw
-*.dat
+# *.raw
+# *.dat
 
 # VSCode
 .vscode/*

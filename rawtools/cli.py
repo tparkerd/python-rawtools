@@ -1,135 +1,123 @@
-"""Console script for rawtools."""
+from __future__ import annotations
+
 import argparse
+import logging
 import sys
-from importlib.metadata import version
+from argparse import ArgumentParser
+from argparse import ArgumentTypeError
 from multiprocessing import cpu_count
+from pprint import pformat
 
-from rawtools import convert, generate, log, qualitycontrol, raw2img
+from rich.console import Console
 
-__version__ = version('rawtools')
+from rawtools import __version__
+from rawtools import log
+from rawtools.constants import KNOWN_FILETYPES
+from rawtools.constants import OUTPUT_BITDEPTHS
+from rawtools.constants import PROJECTION_OPTIONS
+from rawtools.convert import convert
+from rawtools.utils.path import prune_paths
 
-def main():
-    """Console script for rawtools."""
-    return 0
 
-def raw_convert():
-    supported_output_formats = ['uint16']
-    supported_input_formats = ['float32']
-    description='Convert .raw 3d volume file to typical image format slices'
+def known_filetype(filetype: str) -> str:
+    if not any([filetype in category for category in KNOWN_FILETYPES.values()]):
+        raise ArgumentTypeError(f"'{filetype}' is not a supported file format: {KNOWN_FILETYPES}")
+    return filetype
 
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-t", "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-    parser.add_argument("--format", default='uint16', help=f"Desired output .RAW format. Supported formats: {supported_output_formats}")
-    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help=f"Input directory to process. Supported formats: {supported_input_formats}")
-    args = parser.parse_args()
 
-    # Check for unsupported formats
-    if args.format not in supported_output_formats:
-        raise ValueError(f"Unsupported format, '{args.format}' specified. Please specify a supported format: {supported_output_formats}")
+def __add_global_options(parser: ArgumentParser):
+    """Add arguments common to all sub-commands (e.g., -V, -f, -n, etc.)"""
+    parser.add_argument('-V', '--version', action='version', version=f'%(prog)s {__version__}')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Increase output verbosity')
+    parser.add_argument('-t', '--threads', metavar='N', type=int, default=cpu_count(), help='Specify upper limit for number of threads used during processing')
+    parser.add_argument('-r', '-R', '--recursive', action='store_true', help='Perform action recursively')
+    # parser.add_argument("--strict", action="store_true", help="Enable strict mode for matching file and directory names.")
+    parser.add_argument('--no-log-files', dest='write_log_files', action='store_false', help='Disable writing log files')
+    parser.add_argument('--show-traceback', action='store_true', help='Enable development logging')
 
-    # Set up logging
-    args.module_name = 'convert'
-    log.configure(args)
+    mutex_opts = parser.add_mutually_exclusive_group(required=False)
+    mutex_opts.add_argument('-f', '--force', action='store_true', help='Force file creation and overwrite existing files (cannot be used in conjunction with -n)')
+    mutex_opts.add_argument('-n', '--dry-run', dest='dryrun', action='store_true', help='Perform a trial run with no changes made (logs are still produced)')
 
+
+def __add_convert_options(parser: ArgumentParser):
+    __add_global_options(parser)
+    parser.add_argument('-F', '--from', metavar='FROM', dest='_from', type=known_filetype, help='input file format')
+    parser.add_argument('-T', '--to', type=known_filetype, help='output file format')
+    parser.add_argument('-b', '--bit-depth', dest='bitdepth', default='uint8', choices=OUTPUT_BITDEPTHS, help='output bit-depth')
+    parser.add_argument('path', metavar='PATH', nargs='+', help='Input directory to process')
+
+
+def __add_quality_control_options(parser: ArgumentParser):
+    subparser = parser.add_subparsers(dest='subcommand')
+    image_quality_parser = subparser.add_parser('image', help='image qc parser')
+    __add_global_options(image_quality_parser)
+    image_quality_parser.add_argument('-p', '--projection', action='store', default='side', choices=PROJECTION_OPTIONS, help='Generate projection using maximum values for each slice.')
+    image_quality_parser.add_argument('--scale', dest='step', const=100, action='store', nargs='?', default=argparse.SUPPRESS, type=int, help='Add scale on left side of a side projection. Step is the number of slices between each label. (default: 100)')
+    image_quality_parser.add_argument('-s', '--slice', dest='index', const=True, nargs='?', type=int, default=argparse.SUPPRESS, help="Extract a slice from volume's side view. (default: floor(x/2))")
+    image_quality_parser.add_argument('--font-size', dest='font_size', action='store', type=int, default=24, help='Font size of labels of scale.')
+    image_quality_parser.add_argument('path', metavar='PATH', nargs='+', help='Input directory to process')
+
+
+def __standardize_arguments(args: argparse.Namespace) -> argparse.Namespace:
+    """Standardize runtime arguements (e.g., )"""
     # Make sure user does not request more CPUs can available
     if args.threads > cpu_count():
         args.threads = cpu_count()
 
-    # Change format to always be lowercase
-    args.format = args.format.lower()
-    args.path = list(set(args.path)) # remove any duplicates
+    # Adjust situational arguments
+    if 'format' in args:
+        # Change format to always be lowercase
+        args.format = args.format.lower()
+    # Prune file paths
+    if 'path' in args:
+        paths = prune_paths(args.path)
+        # Alert user if not valid paths were provided
+        if not paths:
+            raise ArgumentTypeError(f"No valid path was found. Please double check your input path(s) for typos and/or inaccessible permissions: '{args.path}'")
+        else:
+            args.path = paths
 
-    # Run module
-    convert.main(args)
-
-def raw_generate():
-    description = "Convert .raw 3d volume file to typical image format slices"
-
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument('--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Image filepath(s)')
-    args = parser.parse_args()
-
-    args.module_name = 'generate'
-    log.configure(args)
-
-    generate.main(args)
-
-def raw_nsihdr():
-    description = "This tool converts a NSI project from 32-bit float to 16-bit unsigned integer format."
-
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Increase output verbosity")
-    parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-    parser.add_argument("--gui", action="store_true", default=False, help="(Experimental) Enable GUI")
-    parser.add_argument('path', metavar='PATH', type=str, nargs="+", help='List of .nsihdr files')
-    args = parser.parse_args()
-
-    args.module_name = 'nsihdr'
-    log.configure(args)
-
-    # Use a GUI to select the source directory
-    if args.gui == True:
-        from rawtools.gui import nsihdr
-        nsihdr.App(args)
-    # Otherwise, assume CLI use
-    else:
-        from rawtools import nsihdr
-        nsihdr.main(args)
-
-def raw_qc():
-    """Quality control tools"""
-    description="Check the quality of a .RAW volume by extracting a slice or generating a projection. Requires a .RAW and .DAT for each volume."
-
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-f", "--force", action="store_true", default=False, help="Force file creation. Overwrite any existing files.")
-    parser.add_argument("--si", action="store_true", default=False, help="Print human readable sizes (e.g., 1 K, 234 M, 2 G)")
-    parser.add_argument("-p", "--projection", action="store", nargs='+', help="Generate projection using maximum values for each slice. Available options: [ 'top', 'side' ].")
-    parser.add_argument("--scale", dest="step", const=100, action="store", nargs='?', default=argparse.SUPPRESS, type=int, help="Add scale on left side of a side projection. Step is the number of slices between each label. (default: 100)")
-    parser.add_argument("-s", "--slice", dest='index', const=True, nargs='?', type=int, default=argparse.SUPPRESS, help="Extract a slice from volume's side view. (default: floor(x/2))")
-    parser.add_argument("--font-size", dest="font_size", action="store", type=int, default=24, help="Font size of labels of scale.")
-    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Filepath to a .RAW or path to a directory that contains .RAW files.')
-    args = parser.parse_args()
-
-    args.module_name = 'qc'
-    log.configure(args)
-
-    qualitycontrol.main(args)
+    return args
 
 
-def raw_image():
-    description='Convert .raw 3d volume file to typical image format slices'
-    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument("-t", "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-    parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
-    parser.add_argument("--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
-    parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
-    args = parser.parse_args()
+def main(*argv, **kwargs):
+    try:
+        parser = ArgumentParser()
+        # Global options
+        __add_global_options(parser)
 
-    # Make sure user does not request more CPUs can available
-    if args.threads > cpu_count():
-        args.threads = cpu_count()
+        # Sub-commands (e.g., convert, qc, etc.)
+        subparsers = parser.add_subparsers(dest='command')
+        convert_parser = subparsers.add_parser('convert', help='Convert between image (slice, raw) and text formats (dat, nsipro, csv)')
+        __add_convert_options(convert_parser)
 
-    # Change format to always be lowercase
-    args.format = args.format.lower()
-    args.path = list(set(args.path)) # remove any duplicates
+        qc_parser = subparsers.add_parser('qc', help='Perform quality control ')
+        __add_quality_control_options(qc_parser)
 
-    args.module_name = 'raw2img'
-    log.configure(args)
+        args = parser.parse_args(*argv)
+        log.configure(module_name=args.command, **vars(args))
+        args = __standardize_arguments(args)
+        logging.debug(f'Standardized arguments: {pformat(vars(args))}')
 
-    raw2img.main(args)
+        # Perform requested action
+        if args.command == 'convert':
+            # NOTE: slices for volume is indistinguishable from voxel slices
+            # Therefore, if the user wants to use a known slice file extension,
+            # they must specify what type. For now, we'll assume that the user
+            # wants all matching slices to be convert and they have already
+            # partitioned volume data from voxel data
+            convert(**vars(args))
+        elif args.command == 'qc':
+            raise NotImplementedError
+        else:
+            parser.print_help(sys.stderr)
+    except Exception as e:
+        logging.error(e)
+        if args.show_traceback:
+            console = Console()
+            console.print_exception(show_locals=True)
 
-if __name__ == "__main__":
-    sys.exit(main())  # pragma: no cover
+
+if __name__ == '__main__':
+    raise SystemExit(main())

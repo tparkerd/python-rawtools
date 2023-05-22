@@ -1,12 +1,17 @@
-pip
 bump2version
-wheel
-watchdog
-flake8
-tox
 coverage
-Sphinx
-twine
+flake8
+mypy
+pip
+pre-commit
+pyfakefs
 
 pytest
+pytest-datadir
 pytest-runner
+Sphinx
+tox
+twine
+types-Pillow
+watchdog
+wheel

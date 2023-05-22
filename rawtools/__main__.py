@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import setuptools
+from rawtools.cli import main
 
 if __name__ == '__main__':
-    setuptools.setup()
+    raise SystemExit(main())

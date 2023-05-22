@@ -1,6 +1,6 @@
 numpy
-tqdm
 Pillow
-ttkthemes
-scikit-image
 rich
+scikit-image
+tqdm
+ttkthemes

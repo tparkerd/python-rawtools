@@ -17,17 +17,20 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from __future__ import annotations
 
-from ctypes import *
 import sys
+from ctypes import *
+
 import pkg_resources
-import rawtools 
+
+import rawtools
 
 # libpath = os.path.dirname(sys.modules["efxsdk"].__file__)
 shared_lib_path = pkg_resources.resource_filename('rawtools', 'lib/win64/efX-SDK.dll')
 try:
     efx_sdk = CDLL(shared_lib_path)
-    print("Successfully loaded ", efx_sdk)
+    print('Successfully loaded ', efx_sdk)
 except Exception as e:
     raise e
 
@@ -137,7 +140,7 @@ class efXVolume:
     def read_slice(self, sliceidx):
         slice = ((c_float * self.slice_width()) * self.slice_height())()
         if not vol_read_slice(self.handle, cast(slice, c_void_p), c_uint(int(sliceidx))):
-            raise Exception("Failed to read slice")
+            raise Exception('Failed to read slice')
         return slice
 
 
@@ -151,7 +154,7 @@ def open(filename):
             self.volume = efXVolume(self.handle)
             try:
                 if not self.volume.open(self.filename):
-                    raise Exception("Failed to open file")
+                    raise Exception('Failed to open file')
             except Exception as err:
                 vol_delete(self.handle)
                 raise
@@ -169,4 +172,4 @@ def save_tif32(filename, slice, slice_height, slice_width):
     else:
         cslice = slice
     if not save_gray_tif32(filename, cast(cslice, c_void_p), c_uint(slice_height), c_uint(slice_width)):
-        raise Exception("Failed to save tif")
+        raise Exception('Failed to save tif')
