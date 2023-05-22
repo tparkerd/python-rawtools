@@ -16,6 +16,18 @@ from rawtools.utils.path import FilePath
 # from rawtools.utils.dat import determine_bit_depth
 
 
+def _infer_image_save_mode(bitdepth: str):
+    if bitdepth == 'uint8':
+        mode = 'L'
+    elif bitdepth == 'uint16':
+        mode = 'I;16'
+    elif bitdepth == 'float32' or bitdepth == 'float':
+        mode = 'F'
+    else:
+        mode = 'I;16'
+    return mode
+
+
 def array_to_image(
     fpath: FilePath,
     arr: np.ndarray,
@@ -55,11 +67,18 @@ def array_to_image(
     if arr.dtype != np.dtype(image_bitdepth):
         slice = scale(slice, old_min, old_max, new_min, new_max)
         slice = np.floor(slice)  # TODO: is this still necessary?
-
-    target_bitdepth = arr.dtype.itemsize * 8
+        slice = slice.astype(image_bitdepth)
 
     if not dryrun:
-        Image.fromarray(slice.astype(image_bitdepth)).save(str(fpath), bits=target_bitdepth)
+        target_fpath = str(fpath)
+        target_fname, target_ext = os.path.splitext(target_fpath)
+        image_mode = _infer_image_save_mode(image_bitdepth)
+        if 'float' in image_bitdepth and 'tif' not in target_ext:
+            logging.warning("PNG does not support 32-bit float bit-depth. Defaulting to 'tif' file extension instead.")
+            target_ext = 'tif'
+            target_fpath = f'{target_fname}.tif'
+        img = Image.fromarray(slice)
+        img.save(target_fpath, mode=image_mode)
         logging.debug(f"'{fpath}' was successfully written.")
 
 
