@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from functools import reduce
+from math import prod
 from pathlib import Path
 
 import numpy as np
@@ -52,7 +52,7 @@ def test_dat_determine_bitdepth_from_dimensions(test_input, fs):
     dims = (10, 11, 12)
     bitdepth = test_input
     nbytes = np.dtype(bitdepth).itemsize
-    filesize = nbytes * reduce(lambda x, y: x * y, dims)
+    filesize = nbytes * prod(dims)
     fs.create_file(fpath, st_size=filesize)
     result = dat.determine_bit_depth(fpath, dims)
     assert result == test_input
@@ -63,7 +63,7 @@ def test_dat_determine_bitdepth_from_dimensions_failure_too_small(caplog, fs):
     dims = (10, 11, 12)
     bitdepth = 'uint8'
     nbytes = np.dtype(bitdepth).itemsize
-    filesize = nbytes * reduce(lambda x, y: x * y, dims)
+    filesize = nbytes * prod(dims)
     fs.create_file(fpath, st_size=filesize - 1)
     dat.determine_bit_depth(fpath, dims)
     assert 'Detected possible data corruption. File is smaller than expected' in caplog.text
@@ -82,7 +82,7 @@ def test_dat_determine_bitdepth_from_dimensions_failure_corrupt(bitdepth, offset
     fpath = '/foo.raw'
     dims = (10, 11, 12)
     nbytes = np.dtype(bitdepth).itemsize
-    filesize = nbytes * reduce(lambda x, y: x * y, dims)
+    filesize = nbytes * prod(dims)
     fs.create_file(fpath, st_size=filesize + offset)
     result_bitdepth = dat.determine_bit_depth(fpath, dims)
     assert 'Detected possible data corruption' in caplog.text
@@ -94,7 +94,7 @@ def test_dat_determine_bitdepth_from_dimensions_failure_too_large(fs):
     dims = (10, 11, 12)
     bitdepth = 'float32'
     nbytes = np.dtype(bitdepth).itemsize
-    filesize = nbytes * reduce(lambda x, y: x * y, dims)
+    filesize = nbytes * prod(dims)
     fs.create_file(fpath, st_size=filesize + 1)
     with pytest.raises(Exception, match=r'Unable to determine bit-depth of volume'):
         dat.determine_bit_depth(fpath, dims)
