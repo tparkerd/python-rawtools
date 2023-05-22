@@ -47,3 +47,8 @@ module = [
     "raster_geometry"
 ]
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: mark a test that takes a long time to run.",
+]
