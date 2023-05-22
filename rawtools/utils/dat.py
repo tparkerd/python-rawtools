@@ -4,9 +4,10 @@ from __future__ import annotations
 import logging
 import os
 import re
+import textwrap
 from dataclasses import asdict
 from dataclasses import dataclass
-from functools import reduce
+from math import prod
 
 from rawtools.utils.path import FilePath
 
@@ -47,6 +48,7 @@ def format_from_bitdepth(name: str) -> str:
         'uint8': 'UCHAR',
         'uint16': 'USHORT',
         'float32': 'FLOAT',
+        'float': 'FLOAT',
         '8': 'UCHAR',
         '16': 'USHORT',
         '32': 'FLOAT',
@@ -83,7 +85,7 @@ def determine_bit_depth(fpath: FilePath, dims: tuple[int, int, int]) -> str:
     """
     filesize = os.stat(fpath).st_size
     # get product of dimensions
-    minimum_size = reduce(lambda x, y: x * y, dims)
+    minimum_size = prod(dims)
     logging.debug(f"Minimum calculated size of '{fpath}' is {minimum_size} bytes")
 
     expected_uint8_fsize = minimum_size
@@ -285,7 +287,7 @@ def read(fpath: FilePath) -> Dat:
     raise ValueError(f"Unable to parse '{fpath}'.")
 
 
-def write(fpath: FilePath, dimensions: tuple[int, int, int], thickness: tuple[float, float, float], dtype: str = 'uint16', model: str = 'DENSITY') -> None:
+def write(fpath: FilePath, dimensions: tuple[int, ...], thickness: tuple[float, ...], dtype: str = 'uint16', model: str = 'DENSITY') -> None:
     """Write a .DAT file
 
     Args:
@@ -397,6 +399,7 @@ def write(fpath: FilePath, dimensions: tuple[int, int, int], thickness: tuple[fl
         Format:         {Format}
         ObjectModel:    {model}
         """
+    output_string = textwrap.dedent(output_string)
 
     try:
         with open(fpath, 'w') as ofp:

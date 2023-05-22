@@ -17,6 +17,7 @@ KNOWN_FILETYPES = dict(
     volume=VOLUME_FILETYPES,
 )
 KNOWN_FILETYPES_FLAT = list(set(chain.from_iterable(KNOWN_FILETYPES.values())))
+RAW_BITDEPTHS = ['uint8', 'uint16', 'float32']
 
 # ==============================================================================
 # Command Line Interface Options
