@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 import numpy as np
 from PIL import Image
@@ -37,6 +38,15 @@ def array_to_image(
         new_bounds (tuple): lower and upper bounds for possible value for each pixel of output image
     """
     dryrun = kwargs.get('dryrun', False)
+
+    # Adjust the output path if the user specified a different location
+    if (output_directory := kwargs.get('output_directory', None)) is not None:
+        bname = os.path.basename(fpath)
+        adjusted_fpath = os.path.join(output_directory, bname)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+        fpath = adjusted_fpath
+
     slice = arr.reshape((height, width))
 
     old_min, old_max = old_bounds
