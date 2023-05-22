@@ -81,7 +81,7 @@ def __standardize_arguments(args: argparse.Namespace) -> argparse.Namespace:
     return args
 
 
-def main(*args, **kwargs):
+def main(*argv, **kwargs):
     try:
         parser = ArgumentParser()
         # Global options
@@ -95,21 +95,26 @@ def main(*args, **kwargs):
         qc_parser = subparsers.add_parser('qc', help='Perform quality control ')
         __add_quality_control_options(qc_parser)
 
-        opts = parser.parse_args()
-        log.configure(module_name=opts.command, **vars(opts))
-        opts = __standardize_arguments(opts)
-        logging.debug(f'Standardized arguments: {pformat(vars(opts))}')
+        args = parser.parse_args()
+        log.configure(module_name=args.command, **vars(args))
+        args = __standardize_arguments(args)
+        logging.debug(f'Standardized arguments: {pformat(vars(args))}')
 
         # Perform requested action
-        if opts.command == 'convert':
-            convert(**vars(opts))
-        elif opts.command == 'qc':
+        if args.command == 'convert':
+            # NOTE: slices for volume is indistinguishable from voxel slices
+            # Therefore, if the user wants to use a known slice file extension,
+            # they must specify what type. For now, we'll assume that the user
+            # wants all matching slices to be convert and they have already
+            # partitioned volume data from voxel data
+            convert(**vars(args))
+        elif args.command == 'qc':
             raise NotImplementedError
         else:
             parser.print_help(sys.stderr)
     except Exception as e:
         logging.error(e)
-        if opts.show_traceback:
+        if args.show_traceback:
             console = Console()
             console.print_exception(show_locals=True)
 
