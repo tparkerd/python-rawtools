@@ -467,3 +467,27 @@ def test_dataset_many_directories_containing_many_volume_slice_directories_recur
     result = set(collect_datasets(*paths, filetype=ext, recursive=True))
     difference = expected ^ result
     assert not difference
+
+
+# ==============================================================================
+# Parsing Filenames
+# ==============================================================================
+
+@pytest.mark.xfail(raises=NotImplementedError)
+@pytest.mark.parametrize(
+    ('test_input', 'expected'), [
+        (
+            '/foo/bar/2023_Planthaven-D3_Example_123-5_bh75_rewash.raw', (
+                '2023', 'Planthaven-D3', 'Example', '123-5', [{'beam_hardening_coefficient': 0.75}, 'rewash'],
+            ),
+        ),
+    ],
+)
+def test_dataset_valid_uuid(test_input, expected):
+    time, location, collection, uid, comment = expected
+    result = Dataset(test_input)
+    assert result.time == time
+    assert result.location == location
+    assert result.collection == collection
+    assert result.uid == uid
+    assert result.comment == comment

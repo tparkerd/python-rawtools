@@ -310,6 +310,17 @@ def is_slice(path: FilePath, mode: str | None = 'strict') -> bool:
     return bool(match)
 
 
+def uid_from_path(path: FilePath) -> str:
+    raise NotImplementedError
+
+
+def uuid_from_path(path: FilePath) -> str:
+    bname = os.path.basename(path)
+    fname, ext = os.path.splitext(bname)
+    # TODO: validate as standard UUID convention
+    return fname
+
+
 def standardize_nsi_project_name(name: str) -> str:
     # Remove illegal characters
     illegal_characters = r"[:#%{}\\/!\$\"`]"

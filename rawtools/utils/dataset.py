@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import Sequence
 
@@ -12,6 +13,8 @@ from rawtools.utils.path import find_slice_directories
 from rawtools.utils.path import infer_filetype_from_path
 from rawtools.utils.path import infer_metatype_from_path
 from rawtools.utils.path import is_slice_directory
+from rawtools.utils.path import uid_from_path
+from rawtools.utils.path import uuid_from_path
 
 
 @dataclass
@@ -30,6 +33,31 @@ class Dataset:
     metatype: str
     ext: str
 
+    # Properties extracted from UUID
+    @property
+    def time(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def location(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def collection(self) -> str:  # TODO: typically this is called the "dataset". Consider renaming?
+        raise NotImplementedError
+
+    @cached_property
+    def uid(self) -> str:
+        return uid_from_path(self.path)
+
+    @cached_property
+    def uuid(self) -> str:
+        return uuid_from_path(self.path)
+
+    @property
+    def comment(self) -> tuple[str]:
+        raise NotImplementedError
+
     def __init__(self, path: FilePath, metatype: str | None = None, ext: str | None = None):
         self.path = os.path.normpath(path)
         if metatype is not None:
@@ -43,7 +71,7 @@ class Dataset:
             self.ext = infer_filetype_from_path(self.path)
 
     def __repr__(self):
-        return f"Dataset('{self.path}', '{self.metatype}', '{self.ext}')"
+        return f"{type(self).__name__}('{self.path}', '{self.metatype}', '{self.ext}')"
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Dataset):
@@ -133,7 +161,7 @@ def collect_datasets(*paths: Sequence[FilePath], filetype: str, recursive: bool 
                     )
             posix_paths = [Path(fpath) for fpath in slice_directories]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"'{filetype}' is not a supported filetype.")
     # ==========================================================================
     # Shallow Search
     # ==========================================================================
