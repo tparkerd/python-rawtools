@@ -112,8 +112,6 @@ def collect_datasets(*paths: FilePath, filetype: str, recursive: bool = False) -
         List[Dataset]: refined list of paths with best-guess at data file format
     """
     posix_paths: list[Path] = [Path(str(p)) for p in paths]
-    # print(f'{paths=}')
-    # print(f'{filetype=}')
 
     datasets: list[Dataset] = []
 

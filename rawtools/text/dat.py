@@ -127,9 +127,9 @@ def __parse_object_filename(line: str, dat_format: str) -> str | None:
         pattern = r'\s*ObjectFileName\:\s+(?P<filename>.*\.raw)\s*$'
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
-    logging.debug(f'Match: {match}')
 
     if match is not None:
+        logging.debug(f'Match: {match}')
         filename = match.group('filename')
         return filename
     return None
@@ -186,9 +186,9 @@ def __parse_slice_thickness(line: str, dat_format: str) -> tuple[float, float, f
         pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
 
     match = re.match(pattern, line, flags=re.IGNORECASE)
-    logging.debug(f'Match: {match}')
 
     if match is not None:
+        logging.debug(f'Match: {match}')
         thicknesses_str: list[str] = [match.group('xth'), match.group('yth'), match.group('zth')]
         thicknesses: list[float] = [float(th) for th in thicknesses_str]
         # Change Dragonfly thickness units (meters) to match NSI format
@@ -234,7 +234,8 @@ def __parse_object_model(line: str, dat_format: str) -> str | None:
 def __is_dragonfly_dat_format(line: str) -> bool:
     pattern = r"<\?xml\sversion=\"1\.0\"\?>"
     match = re.match(pattern, line, flags=re.IGNORECASE)
-    logging.debug(f'Match: {match}')
+    if match is not None:
+        logging.debug(f'Match: {match}')
     return bool(match)
 
 

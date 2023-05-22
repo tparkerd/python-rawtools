@@ -147,6 +147,7 @@ class Raw(Dataset):
         # Slice attributes
         img_pixel_count = self.x * self.y
         img_bytes_count = img_pixel_count * np.dtype(self.bitdepth).itemsize
+        logging.debug(f'{bitdepth=}')
         img_bitdepth = bitdepth
         img_basename = os.path.basename(self.path)  # output filename base
         img_filename, _ = os.path.splitext(img_basename)
@@ -273,12 +274,7 @@ class Raw(Dataset):
         # needed between slices would be lost
         if shape is not None:
             with open(self.path, 'rb') as ifp:
-                print('Reading file')
                 data = np.fromfile(ifp, dtype=self.bitdepth).reshape(self.dims)
-                print('Finished reading')
-                print(f'{self.path=}')
-                print(f'{data.shape=}')
-                print(f'{shape=}')
 
                 resized_data = transform.resize_local_mean(
                     data,
