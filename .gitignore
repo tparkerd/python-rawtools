@@ -106,11 +106,11 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# # Data
-# data/*
-# */data/*
-# data
-# data/
+# Data
+data/*
+*/data/*
+data
+data/
 
 # *.raw
 # *.dat
