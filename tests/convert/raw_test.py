@@ -156,41 +156,12 @@ def test_raw_expected_filesize(valid_raw, expected_raw):
         'uint8', 'uint16',
     ],
 )
-def test_raw_to_slices(ext, bitdepth, tmp_path):
-    fname = '2020_Universe_Example_foo'
-    dims = (random.randrange(100, 200), random.randrange(200, 300), random.randrange(300, 400))
-    x, y, z = dims
-    dtype = 'uint16'
+def test_raw_to_slices(ext, bitdepth, generated_raw):
+    generated_raw.to_slices(ext=ext, bitdepth=bitdepth)
+    target_slices_path = Path(os.path.dirname(generated_raw.path), generated_raw.uuid)
 
-    target_raw_fpath = tmp_path / f'{fname}.raw'
-    target_dat_fpath = tmp_path / f'{fname}.dat'
-    target_slices_path = tmp_path / f'{fname}'
-
-    dat_contents = dedent(f"""\
-    ObjectFileName: {fname}.raw
-    Resolution:     {' '.join([str(x) for x in dims])}
-    SliceThickness: 0.123456 0.123456 0.123456
-    Format:         USHORT
-    ObjectModel:    DENSITY
-    """)
-    target_dat_fpath.write_text(dat_contents)
-
-    # Create dummy data with a floating cube
-    voxel_values = (2**(np.dtype(dtype).itemsize * 8) - 1)  # brightest value
-    side_length = 75
-    raw_data = (
-        rg.cube(shape=(z, y, x), side=side_length, position=0.5)
-        .astype(np.dtype(dtype)) * voxel_values
-    )
-    target_raw_fpath.write_bytes(raw_data.tobytes())
-    raw = Raw(target_raw_fpath)
-
-    raw.to_slices(ext=ext, bitdepth=bitdepth)
-
-    assert target_raw_fpath.exists()
-    assert target_dat_fpath.exists()
     assert target_slices_path.exists()
-    assert len(os.listdir(target_slices_path)) == z
+    assert len(os.listdir(target_slices_path)) == generated_raw.z
 
 
 @pytest.mark.parametrize(
@@ -199,18 +170,22 @@ def test_raw_to_slices(ext, bitdepth, tmp_path):
     ],
 )
 @pytest.mark.parametrize(
-    'bitdepth', [
+    'source_bitdepth', [
         'uint8', 'uint16',
     ],
 )
-def test_raw_to_slices_batch(ext, bitdepth, tmp_path):
+@pytest.mark.parametrize(
+    'target_bitdepth', [
+        'uint8', 'uint16',
+    ],
+)
+def test_raw_to_slices_batch(ext, source_bitdepth, target_bitdepth, tmp_path):
 
     def __generate_raw():
         uid = f'{random.randrange(100,500)}-{random.randrange(1,10)}'
         fname = f'2020_Universe_Example_{uid}'
-        dims = (random.randrange(100, 200), random.randrange(200, 300), random.randrange(300, 400))
-        x, y, z = dims
-        dtype = 'uint16'
+        dims = (random.randrange(5, 10), random.randrange(11, 20), random.randrange(21, 30))
+        sw, sh, nslices = dims
 
         target_raw_fpath = tmp_path / f'{fname}.raw'
         target_dat_fpath = tmp_path / f'{fname}.dat'
@@ -219,25 +194,32 @@ def test_raw_to_slices_batch(ext, bitdepth, tmp_path):
         ObjectFileName: {fname}.raw
         Resolution:     {' '.join([str(x) for x in dims])}
         SliceThickness: 0.123456 0.123456 0.123456
-        Format:         USHORT
+        Format:         {dat.format_from_bitdepth(source_bitdepth)}
         ObjectModel:    DENSITY
         """)
         target_dat_fpath.write_text(dat_contents)
 
         # Create dummy data with a floating cube
-        voxel_values = (2**(np.dtype(dtype).itemsize * 8) - 1)  # brightest value
-        side_length = 75
+        radius = 50
+
+        brightest_value = (2**(np.dtype(source_bitdepth).itemsize * 8) - 1)  # brightest value
         raw_data = (
-            rg.cube(shape=(z, y, x), side=side_length, position=0.5)
-            .astype(np.dtype(dtype)) * voxel_values
-        )
-        target_raw_fpath.write_bytes(raw_data.tobytes())
+            rg.sphere(
+                radius=radius,
+                shape=(nslices, sh, sw),
+                position=0.5,
+            ) * brightest_value
+        ).astype(source_bitdepth)
+
+        raw_bytes = raw_data.tobytes()
+        with open(target_raw_fpath, 'wb') as ofp:
+            ofp.write(raw_bytes)
         r = Raw(target_raw_fpath)
         return r
 
     samples = [__generate_raw() for _ in range(3)]
     target_output_path = tmp_path / 'output'
-    raw.batch_convert(*samples, target_directory=target_output_path)
+    raw.batch_convert(*samples, ext=ext, bitdepth=target_bitdepth, target_directory=target_output_path)
 
 
 @pytest.mark.parametrize(
@@ -352,4 +334,22 @@ def test_raw_to_raw_reshape(input_bitdepth, output_bitdepth, tmp_path):
     assert os.stat(output_fpath).st_size == expected_filesize
 
 
-# TODO: check if changing the output_directory for to_slices() works as intended
+@pytest.mark.xfail(raises=NotImplementedError)
+def test_raw_to_slices_user_specified_output_directory():
+    # Check that when a user specifies a custom output directory
+    # that it is respected. This might be a CLI test instead of
+    # a RAW specific test.
+    raise NotImplementedError
+
+
+def test_raw_slice_iteration(generated_raw):
+    raw_arr = generated_raw.asarray()
+    generated_raw.to_slices()
+
+    for idx, slice_ in enumerate(generated_raw.slices):
+        a1 = raw_arr[idx, :, :]
+        a2 = slice_
+        assert np.array_equal(a1, a2)
+        if not np.array_equal(a1, a2):
+            print(f'{a1=}')
+            print(f'{a2=}')

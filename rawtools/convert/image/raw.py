@@ -6,6 +6,7 @@ from difflib import get_close_matches
 from functools import cached_property
 from math import prod
 from pathlib import Path
+from typing import Generator
 
 import numpy as np
 from skimage import transform
@@ -19,9 +20,9 @@ from rawtools.utils.path import FilePath
 
 
 class Raw(Dataset):
-    x: int
-    y: int
-    z: int
+    x: int  # columns , slice width
+    y: int  # rows, slice height
+    z: int  # depth, number of slices
     x_thickness: float
     y_thickness: float
     z_thickness: float
@@ -55,6 +56,30 @@ class Raw(Dataset):
     def max(self) -> int | float:
         _, ubound = self.minmax
         return ubound
+
+    @property
+    def slices(self) -> Generator[np.ndarray, None, None]:
+        """iterate through each z-slice
+
+        Returns:
+            np.ndarray: slice as reshaped array
+
+        Yields:
+            Iterator[np.ndarray]: slice as reshaped array
+        """
+        n_pixels = self.x * self.y
+        with open(self.path, 'rb') as buffer:
+            for _ in range(self.z):
+                chunk = (
+                    np.fromfile(
+                        buffer,
+                        dtype=self.bitdepth,
+                        count=n_pixels,
+                    )
+                    .reshape(self.y, self.x)
+                )
+
+                yield chunk
 
     @cached_property
     def minmax(self) -> tuple[int | float, int | float]:
@@ -95,8 +120,17 @@ class Raw(Dataset):
         raise NotImplementedError
 
     @classmethod
-    def from_array(cls, obj: Dataset) -> Raw:
+    def from_array(cls, obj: np.ndarray) -> Raw:
+        if not isinstance(obj, np.ndarray):
+            raise NotImplementedError
+
+        if obj.ndim != 3:
+            raise ValueError(f"Data object has '{obj.ndim}' instead of 3.")
+
         raise NotImplementedError
+
+    def asarray(self):
+        return np.fromfile(self.path, dtype=self.bitdepth).reshape(self.z, self.y, self.x)
 
     def __init__(self, path: FilePath):
         super().__init__(path)
@@ -113,6 +147,9 @@ class Raw(Dataset):
 
         # Check for invalid data
         dat.determine_bit_depth(self.path, self.dims)
+
+    def __repr__(self):
+        return f"{type(self).__name__}('{self.path}', dims={self.dims}, ext='{self.ext}', bitdepth='{self.bitdepth}')"
 
     def __find_dat(self) -> FilePath:
         dpath = os.path.dirname(self.path)
@@ -145,9 +182,6 @@ class Raw(Dataset):
         dryrun = kwargs.get('dryrun', False)
 
         # Slice attributes
-        img_pixel_count = self.x * self.y
-        img_bytes_count = img_pixel_count * np.dtype(self.bitdepth).itemsize
-        logging.debug(f'{bitdepth=}')
         img_bitdepth = bitdepth
         img_basename = os.path.basename(self.path)  # output filename base
         img_filename, _ = os.path.splitext(img_basename)
@@ -187,33 +221,24 @@ class Raw(Dataset):
         # TODO: add progress bar
 
         # For each slice...
-        with open(self.path, 'rb') as buffer:
-            for idx in range(0, self.z):
-                buffer.seek(idx * img_bytes_count)
-                # Read data
-                chunk = np.fromfile(
-                    buffer,
-                    dtype=self.bitdepth,
-                    count=img_pixel_count,
-                )
-                # Create output target filepath
-                img_fname = os.path.splitext(img_basename)[0]
-                img_fpath = os.path.join(
-                    target_output_directory,
-                    f'{img_fname}_{idx:0{len(str(self.z))}d}.{ext}',
-                )
-                chunk = chunk.reshape((self.y, self.x))
-                # Save image
-                array_to_image(
-                    img_fpath,
-                    chunk,
-                    width=self.x,
-                    height=self.y,
-                    image_bitdepth=img_bitdepth,
-                    old_bounds=(old_min, old_max),
-                    new_bounds=(new_min, new_max),
-                    **kwargs,
-                )
+        for idx, slice_ in enumerate(self.slices):
+            # Create output target filepath
+            img_fname = os.path.splitext(img_basename)[0]
+            img_fpath = os.path.join(
+                target_output_directory,
+                f'{img_fname}_{idx:0{len(str(self.z))}d}.{ext}',
+            )
+            # Save image
+            array_to_image(
+                img_fpath,
+                slice_,
+                width=self.x,
+                height=self.y,
+                image_bitdepth=img_bitdepth,
+                old_bounds=(old_min, old_max),
+                new_bounds=(new_min, new_max),
+                **kwargs,
+            )
 
     def to_raw(self, path: FilePath, *, bitdepth: str | None = 'uint8', shape: tuple[int, int, int] | None = None, **kwargs):
         """convert a .raw to .raw; typically used to change bit depth or scale values

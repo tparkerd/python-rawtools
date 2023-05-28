@@ -59,6 +59,7 @@ def array_to_image(
             os.makedirs(output_directory)
         fpath = adjusted_fpath
 
+    # slice = arr.reshape((height, width))
     slice = arr.reshape((height, width))
 
     old_min, old_max = old_bounds
