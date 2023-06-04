@@ -31,6 +31,25 @@ class Raw(Dataset):
     model: str
     dat_path: FilePath
 
+    def __init__(self, path: FilePath):
+        super().__init__(path)
+        self.dat_path = self.__find_dat()
+        self.metadata = self.__load_metadata()
+        self.x, self.y, self.z = self.metadata.dimensions
+        self.bitdepth = dat.bitdepth_from_format(self.metadata.format)
+        self.format = dat.format_from_bitdepth(self.bitdepth)
+        self.x_thickness = self.metadata.x_thickness
+        self.y_thickness = self.metadata.y_thickness
+        self.z_thickness = self.metadata.z_thickness
+        self.filesize = os.stat(self.path).st_size
+        self.model = self.metadata.model
+
+        # Check for invalid data
+        dat.determine_bit_depth(self.path, self.dims)
+
+    def __repr__(self):
+        return f"{type(self).__name__}('{self.path}', dims={self.dims}, ext='{self.ext}', bitdepth='{self.bitdepth}')"
+
     @property
     def dims(self) -> tuple[int, int, int]:
         return (self.x, self.y, self.z)
@@ -116,10 +135,6 @@ class Raw(Dataset):
         return cls(obj.path)
 
     @classmethod
-    def from_slices(cls, path: FilePath) -> Raw:
-        raise NotImplementedError
-
-    @classmethod
     def from_array(cls, obj: np.ndarray, path: FilePath, **kwargs) -> Raw:
         if not isinstance(obj, np.ndarray):
             raise NotImplementedError
@@ -146,28 +161,6 @@ class Raw(Dataset):
             )
         return Raw(path)
 
-    def asarray(self):
-        return np.fromfile(self.path, dtype=self.bitdepth).reshape(tuple(reversed(self.dims)))
-
-    def __init__(self, path: FilePath):
-        super().__init__(path)
-        self.dat_path = self.__find_dat()
-        self.metadata = self.__load_metadata()
-        self.x, self.y, self.z = self.metadata.dimensions
-        self.bitdepth = dat.bitdepth_from_format(self.metadata.format)
-        self.format = dat.format_from_bitdepth(self.bitdepth)
-        self.x_thickness = self.metadata.x_thickness
-        self.y_thickness = self.metadata.y_thickness
-        self.z_thickness = self.metadata.z_thickness
-        self.filesize = os.stat(self.path).st_size
-        self.model = self.metadata.model
-
-        # Check for invalid data
-        dat.determine_bit_depth(self.path, self.dims)
-
-    def __repr__(self):
-        return f"{type(self).__name__}('{self.path}', dims={self.dims}, ext='{self.ext}', bitdepth='{self.bitdepth}')"
-
     def __find_dat(self) -> FilePath:
         dpath = os.path.dirname(self.path)
         bname = os.path.basename(self.path)
@@ -188,7 +181,10 @@ class Raw(Dataset):
     def __load_metadata(self):
         return dat.read(self.dat_path)
 
-    def to_slices(self, path: FilePath | None = None, *, ext: str = 'png', bitdepth: str = 'uint8', **kwargs):
+    def asarray(self):
+        return np.fromfile(self.path, dtype=self.bitdepth).reshape(tuple(reversed(self.dims)))
+
+    def to_slices(self, path: FilePath | None = None, *, ext: str = 'png', bitdepth: str | None = None, **kwargs):
         """convert raw to slices (directory)
 
         Args:
@@ -199,7 +195,10 @@ class Raw(Dataset):
         dryrun = kwargs.get('dryrun', False)
 
         # Slice attributes
-        img_bitdepth = bitdepth
+        if bitdepth is not None:
+            img_bitdepth = bitdepth
+        else:
+            img_bitdepth = self.bitdepth
         img_basename = os.path.basename(self.path)  # output filename base
         img_filename, _ = os.path.splitext(img_basename)
         img_dirname = os.path.dirname(self.path)
@@ -236,9 +235,6 @@ class Raw(Dataset):
         else:
             new_min = float(np.finfo(np.dtype(img_bitdepth)).min)
             new_max = float(np.finfo(np.dtype(img_bitdepth)).max)
-
-        # TODO: add multiprocessing
-        # TODO: add progress bar
 
         # For each slice...
         for idx, slice_ in enumerate(self.slices):
@@ -370,8 +366,9 @@ def batch_convert(*data: Raw, ext='png', bitdepth='uint8', **kwargs):
 
 
 def read_raw(path: FilePath, **kwargs) -> Raw:
-    return Raw(path)
-
-# if __name__ == "__main__":
-#     import sys
-#     SystemExit(batch_convert(sys.argv))
+    try:
+        raw_ = Raw(path)
+    except Exception:
+        raise
+    else:
+        return raw_
