@@ -121,7 +121,7 @@ def infer_metatype_from_path(path: FilePath) -> str:
             return 'text'
         elif ext in ['.raw']:
             return 'volume'
-    raise Exception("'{ext}' is an unknown file format.")
+    raise Exception(f"'{ext}' is an unknown file format.")
 
 
 def infer_filetype_from_path(path: FilePath) -> str:
