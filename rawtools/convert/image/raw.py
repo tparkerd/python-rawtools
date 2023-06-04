@@ -120,17 +120,34 @@ class Raw(Dataset):
         raise NotImplementedError
 
     @classmethod
-    def from_array(cls, obj: np.ndarray) -> Raw:
+    def from_array(cls, obj: np.ndarray, path: FilePath, **kwargs) -> Raw:
         if not isinstance(obj, np.ndarray):
             raise NotImplementedError
 
         if obj.ndim != 3:
             raise ValueError(f"Data object has '{obj.ndim}' instead of 3.")
 
-        raise NotImplementedError
+        dname = os.path.dirname(path)
+        fname, _ = os.path.splitext(os.path.basename(path))
+        dat_path = os.path.join(dname, f'{fname}.dat')
+
+        # An array doesn't inherently have a "thickness" for each dimension,
+        # so let's assume that it's a unitless "one" unless otherwise specified
+        # but the user.
+        thickness = kwargs.get('thickness', (1., 1., 1.))
+
+        with open(path, 'wb') as ifp:
+            ifp.write(obj.tobytes())
+            dat.write(
+                dat_path,
+                dimensions=tuple(reversed(obj.shape)),
+                thickness=thickness,
+                dtype=obj.dtype,
+            )
+        return Raw(path)
 
     def asarray(self):
-        return np.fromfile(self.path, dtype=self.bitdepth).reshape(self.z, self.y, self.x)
+        return np.fromfile(self.path, dtype=self.bitdepth).reshape(tuple(reversed(self.dims)))
 
     def __init__(self, path: FilePath):
         super().__init__(path)
