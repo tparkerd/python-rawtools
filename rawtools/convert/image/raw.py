@@ -188,7 +188,7 @@ class Raw(Dataset):
     def __load_metadata(self):
         return dat.read(self.dat_path)
 
-    def to_slices(self, *, ext: str = 'png', bitdepth: str = 'uint8', **kwargs):
+    def to_slices(self, path: FilePath | None = None, *, ext: str = 'png', bitdepth: str = 'uint8', **kwargs):
         """convert raw to slices (directory)
 
         Args:
@@ -205,7 +205,10 @@ class Raw(Dataset):
         img_dirname = os.path.dirname(self.path)
 
         # Make target directory
-        target_output_directory = Path(img_dirname, img_filename)
+        if path is None:
+            target_output_directory = os.path.join(img_dirname, img_filename)
+        else:
+            target_output_directory = str(path)
         if not os.path.exists(target_output_directory):
             if not dryrun:
                 os.makedirs(target_output_directory)
