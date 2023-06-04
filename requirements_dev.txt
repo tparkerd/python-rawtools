@@ -9,6 +9,7 @@ pyfakefs
 pytest
 pytest-datadir
 pytest-runner
+raster-geometry
 Sphinx
 tox
 twine
