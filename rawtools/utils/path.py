@@ -217,6 +217,34 @@ def infer_metatype_from_directory(path: FilePath) -> str:
             raise Exception('Edge case detected. Cannot determine type of slices.')
 
 
+def infer_slice_thickness_from_path(path: FilePath) -> tuple[float, ...]:
+    """Determine the dimensions of each pixel/voxel for a volume from the filename
+
+    Args:
+        path (FilePath): input file path
+
+    Returns:
+        tuple[float, ...]: dimensions of a voxel in millimeters (x, y, z)
+
+    Note: If unable to extract value, return a unit value (i.e., (1., 1., 1.))
+    """
+    pattern = r'.*_(?P<value>\d+)u.*'
+    basename = os.path.basename(str(path))
+    fname, _ = os.path.splitext(basename)
+    match = re.match(pattern, fname)
+    if match is not None:
+        thickness = float(match.group('value'))
+        thickness /= 1000  # convert form micrometers to millimeters
+        thicknesses = tuple([thickness] * 3)
+        logging.warning(f"slice thickness '{thicknesses}' was inferred from path. This may be inaccurate, as the filename is typically entered by a human.")
+
+    else:
+        logging.warning(f"Cannot infer slice thickness from '{path}'.")
+        thicknesses = (1., 1., 1.)
+
+    return thicknesses
+
+
 def find_slice_directories(path: FilePath, recursive: bool = False) -> list[str]:
     """Identify directories as containing their respective slices (image sequence)
 

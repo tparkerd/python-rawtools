@@ -18,6 +18,7 @@ KNOWN_FILETYPES = dict(
 )
 KNOWN_FILETYPES_FLAT = list(set(chain.from_iterable(KNOWN_FILETYPES.values())))
 RAW_BITDEPTHS = ['uint8', 'uint16', 'float32']
+SLICE_BITDEPTHS = ['uint8', 'uint16', 'float32']
 
 # ==============================================================================
 # Command Line Interface Options

@@ -11,6 +11,7 @@ from rawtools.utils.path import find_slice_directories
 from rawtools.utils.path import infer_filetype_from_path
 from rawtools.utils.path import infer_metatype_from_directory
 from rawtools.utils.path import infer_metatype_from_path
+from rawtools.utils.path import infer_slice_thickness_from_path
 from rawtools.utils.path import is_slice
 from rawtools.utils.path import is_slice_directory
 from rawtools.utils.path import omit_duplicate_paths
@@ -437,3 +438,14 @@ def test_standardize_nsi_project_name_failure_empty():
 def test_standardize_sample_name(fs):
     with pytest.raises(NotImplementedError):
         standardize_sample_name('')
+
+
+@pytest.mark.parametrize(
+    ('test_input', 'expected'), [
+        ('2023_Planthaven-D2_Example_102-1.raw', (1., 1., 1.)),
+        ('2020_UIUC_ValidExample_100-4_102u.raw', (0.102, 0.102, 0.102)),
+        ('2027_FutureFarm_HasCommentExample_999-6_7bh_45u', (0.045, 0.045, 0.045)),
+    ],
+)
+def test_infer_slice_thickness_from_path(test_input, expected):
+    assert infer_slice_thickness_from_path(test_input) == expected
