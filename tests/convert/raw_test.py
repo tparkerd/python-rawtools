@@ -285,7 +285,6 @@ def test_raw_to_raw_reshape(input_bitdepth, output_bitdepth, tmp_path):
 
     r = __generate_raw()
     new_dims = (r.dims[0], r.dims[1], r.dims[2] // 2)
-    print(f'{new_dims=}')
     expected_filesize = prod(new_dims) * np.dtype(output_bitdepth).itemsize
 
     fname = 'foo.raw'
