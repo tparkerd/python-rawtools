@@ -9,6 +9,7 @@ from string import Template
 TEXT_FILETYPES = ['txt', 'dat', 'nsipro', 'csv', 'TXT', 'DAT', 'NSIPRO', 'CSV']
 VOXEL_FILETYPES = ['png', 'out', 'obj', 'xyz', 'PNG', 'OUT', 'OBJ', 'XYZ']
 VOLUME_FILETYPES = ['png', 'tif', 'raw', 'PNG', 'TIF', 'RAW']
+POINTCLOUD_FILETYPES = ['out', 'obj', 'xyz', 'OUT', 'OBJ', 'XYZ']
 COMPOSITE_FILETYPES = ['png', 'tif', 'tif', 'PNG', 'TIF', 'TIFF']
 ATOMIC_FILETYPES = ['raw', 'out', 'obj', 'xyz', 'RAW', 'OUT', 'OBJ', 'XYZ']
 KNOWN_FILETYPES = dict(

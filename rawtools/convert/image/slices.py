@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+import re
 from functools import cached_property
 from pathlib import Path
 from typing import Generator
@@ -9,9 +11,10 @@ from typing import Sequence
 import cv2
 import numpy as np
 
+from rawtools.constants import COMPOSITE_FILETYPES
+from rawtools.constants import POINTCLOUD_FILETYPES
 from rawtools.constants import RAW_BITDEPTHS
 from rawtools.constants import SLICE_BITDEPTHS
-from rawtools.constants import VOXEL_FILETYPES
 from rawtools.convert.image.utils import array_to_image
 from rawtools.text import dat
 from rawtools.utils.dataset import Dataset
@@ -213,7 +216,6 @@ class Slices(Dataset):
         # An array doesn't inherently have a "thickness" for each dimension,
         # so let's assume that it's a unitless "one" unless otherwise specified
         # but the user.
-        # TODO: infer slice thickness from the filename (look for \d+u pattern)
         thickness = kwargs.get('thickness')
         if thickness is None:
             thickness = infer_slice_thickness_from_path(self.path)
@@ -221,23 +223,142 @@ class Slices(Dataset):
         if not dryrun:
             dat.write(dat_fpath, dimensions=(self.width, self.height, self.count), thickness=thickness, dtype=bitdepth)
 
-    def to_pcd(self, path: FilePath | None = None):
-        if self.metatype != 'voxel':
-            raise ValueError(f"'{self.metatype}' cannot be converted to a point-cloud format. Only a voxel-like datatype can be converted to a point cloud. ")
+    def to_pcd(self, path: FilePath | None = None, **kwargs):
 
-        dirname = os.path.dirname(str(path))  # noqa: F841
-        basename = os.path.basename(str(path))
-        fname, ext = os.path.splitext(basename)
-        if ext not in VOXEL_FILETYPES:
+        if self.metatype != 'voxel':
+            raise ValueError(f"'{self.metatype}' cannot be converted to a point-cloud format. Only a voxel-like datatype can be converted to a point cloud.")
+
+        _, ext = os.path.splitext(str(path))
+        ext = ext.rpartition('.')[-1]  # remove leading dot (e.g., '.obj' -> 'obj')
+
+        if ext == 'obj':
+            self.to_obj(path, **kwargs)
+        elif ext == 'out':
+            self.to_out(path, **kwargs)
+        elif ext == 'xyz':
+            self.to_xyz(path, **kwargs)
+        else:
             raise ValueError(f"'{ext}' is not a supported point cloud format.")
 
-        # TODO: do the thing, Zhu Li.
+    def to_obj(self, path: FilePath | None = None, **kwargs):
+        path = str(path)
+        dryrun = kwargs.get('dryrun', False)
+        files = sorted(self.paths, key=fname2idx)
+        for idx, _ in enumerate(files):
+            img = cv2.imread(files[idx], cv2.IMREAD_GRAYSCALE)
 
-        raise NotImplementedError
+            if idx == 0:
+                imgs = np.zeros(
+                    (len(files), img.shape[0], img.shape[1]),
+                    np.uint8,
+                )
+            imgs[idx, ...] = img
+
+        coord_indices = np.nonzero(imgs)
+        coord_indices_arr = np.array(coord_indices)
+        indices = np.transpose(coord_indices_arr)
+
+        prefixes = np.array(['v' for _ in indices], dtype='object')
+        vertices = np.column_stack((prefixes, indices))
+
+        if not dryrun:
+            with open(path, 'wb+') as ifp:
+                np.savetxt(
+                    ifp,
+                    vertices[..., (0, 2, 3, 1)],
+                    fmt='%s',
+                    delimiter=' ',
+                )
+            logging.info(f"Created point-cloud data file: '{path}'")
+        else:
+            logging.info('Dry-run mode. Not generating files.')
+
+    def to_out(self, path: FilePath | None = None, **kwargs):
+        path = str(path)
+        dryrun = kwargs.get('dryrun', False)
+
+        files = sorted(self.paths, key=fname2idx)
+        for idx, _ in enumerate(files):
+            img = cv2.imread(files[idx], cv2.IMREAD_GRAYSCALE)
+
+            if idx == 0:
+                imgs = np.zeros(
+                    (len(files), img.shape[0], img.shape[1]),
+                    np.uint8,
+                )
+            imgs[idx, ...] = img
+
+        coord_indices = np.nonzero(imgs)
+        coord_indices_arr = np.array(coord_indices)
+        indices = np.transpose(coord_indices_arr)
+
+        if not dryrun:
+            with open(path, 'wb+') as ifp:
+                np.savetxt(ifp, np.array([0.15]), fmt='%s')
+                np.savetxt(ifp, np.array([int(len(indices))]), fmt='%s')
+                np.savetxt(
+                    ifp,
+                    indices[..., (1, 2, 0)],
+                    fmt='%s',
+                    delimiter=' ',
+                )
+            logging.info(f"Created point-cloud data file: '{path}'")
+        else:
+            logging.info('Dry-run mode. Not generating files.')
+
+    def to_xyz(self, path: FilePath | None = None, **kwargs):
+        path = str(path)
+        dryrun = kwargs.get('dryrun', False)
+
+        files = sorted(self.paths, key=fname2idx)
+        for idx, _ in enumerate(files):
+            img = cv2.imread(files[idx], cv2.IMREAD_GRAYSCALE)
+
+            if idx == 0:
+                imgs = np.zeros(
+                    (len(files), img.shape[0], img.shape[1]),
+                    np.uint8,
+                )
+            imgs[idx, ...] = img
+
+        coord_indices = np.nonzero(imgs)
+        coord_indices_arr = np.array(coord_indices)
+        indices = np.transpose(coord_indices_arr)
+
+        if not dryrun:
+            with open(path, 'wb+') as ifp:
+                np.savetxt(
+                    ifp,
+                    indices[..., (1, 2, 0)],
+                    fmt='%.6f',
+                    delimiter=' ',
+                )
+            logging.info(f"Created point-cloud data file: '{path}'")
+        else:
+            logging.info('Dry-run mode. Not generating files.')
 
 
 def batch_convert(*data: Slices, ext='raw', bitdepth='uint8', **kwargs):
-    raise NotImplementedError
+    # TODO: add batch multiprocessing
+    # TODO: add progress bar(s)
+
+    for sample in data:
+        dirname = os.path.dirname(sample.path)
+        basename = os.path.basename(sample.path)
+        filename, _ = os.path.splitext(basename)
+
+        # Raw
+        target_fpath = Path(dirname, f'{filename}.{ext}')
+        if ext == 'raw':
+            sample.to_slices(ext=ext, bitdepth=bitdepth, **kwargs)
+        # Point clouds
+        elif ext in POINTCLOUD_FILETYPES:
+            sample.to_pcd(target_fpath, **kwargs)
+        elif ext in COMPOSITE_FILETYPES:
+            target_fpath = Path(dirname, f'{filename}_{ext}')  # append new file format as comment
+            sample.to_slices(target_fpath, ext=ext)
+        else:
+            raise NotImplementedError
 
 
 def read_slices(path: FilePath, **kwargs) -> Slices:
@@ -247,3 +368,20 @@ def read_slices(path: FilePath, **kwargs) -> Slices:
         raise
     else:
         return slices_
+
+
+def fname2idx(fname):
+    """convert filename to slice index
+
+    Args:
+        fname (str): filepath or filename
+
+    Returns:
+        int: slice index
+    """
+    bname, _ = os.path.splitext(fname)  # remove extension
+    m = re.match(r'.*\D(\d+)$', bname)
+    idx = -1
+    if m is not None:
+        idx = int(m.group(1))
+    return idx
